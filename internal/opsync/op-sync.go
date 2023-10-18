@@ -2,67 +2,43 @@ package opsync
 
 import (
 	"context"
-	"os"
-	"os/exec"
-	"strings"
+	"log/slog"
 
-	"github.com/goccy/go-yaml"
-)
-
-type Config struct {
-	Secrets []*SyncConfig `yaml:"secrets"`
-}
-
-type SyncConfig struct {
-	Type SyncType `yaml:"type"`
-
-	// for SyncTypeInject
-	Output   string `yaml:"output"`   // output file path
-	Template string `yaml:"template"` // the template
-}
-
-type SyncType string
-
-const (
-	// SyncTypeInject is the type for injecting secrets into a file.
-	SyncTypeInject SyncType = "inject"
+	"github.com/shogo82148/op-sync/internal/op"
 )
 
 func Run(ctx context.Context, args []string) int {
-	data, err := os.ReadFile(".op-sync.yml")
-	if err != nil {
-		panic(err)
-	}
-
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		panic(err)
-	}
-
-	if err := run(&config); err != nil {
-		panic(err)
+	if err := run(ctx, args); err != nil {
+		slog.ErrorContext(ctx, "op-sync error", slog.String("error", err.Error()))
+		return 1
 	}
 	return 0
 }
 
-func run(cfg *Config) error {
-	for _, secret := range cfg.Secrets {
-		switch secret.Type {
-		case SyncTypeInject:
-			if err := runInject(context.TODO(), secret); err != nil {
-				return err
-			}
-		default:
-		}
-	}
-	return nil
-}
-
-func runInject(ctx context.Context, cfg *SyncConfig) error {
-	cmd := exec.CommandContext(ctx, "op", "inject", "--force", "--out-file", cfg.Output)
-	cmd.Stdin = strings.NewReader(cfg.Template)
-	if err := cmd.Run(); err != nil {
+func run(ctx context.Context, args []string) error {
+	cfg, err := ParseConfig(".op-sync.yml")
+	if err != nil {
 		return err
 	}
+
+	op := op.NewService()
+	planner := NewPlanner(cfg, op)
+	plans, err := planner.Plan(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, plan := range plans {
+		slog.InfoContext(ctx, plan.Preview())
+	}
+
+	// TODO: ask user to continue
+
+	for _, plan := range plans {
+		if err := plan.Apply(ctx); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
