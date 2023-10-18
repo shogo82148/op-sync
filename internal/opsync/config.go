@@ -12,7 +12,8 @@ type Config struct {
 }
 
 type SyncConfig struct {
-	Type SyncType `yaml:"type"`
+	Type   SyncType `yaml:"type"`
+	Source string   `yaml:"source"`
 
 	// for SyncTypeTemplate
 	Output   string `yaml:"output"`   // output file path
