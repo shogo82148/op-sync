@@ -17,6 +17,10 @@ type SyncConfig struct {
 	// for SyncTypeTemplate
 	Output   string `yaml:"output"`   // output file path
 	Template string `yaml:"template"` // the template
+
+	// for SyncTypeGitHub
+	Repository string `yaml:"repository"` // the repository
+	Name       string `yaml:"name"`       // the name of the secret
 }
 
 type SyncType string
@@ -24,6 +28,9 @@ type SyncType string
 const (
 	// SyncTypeTemplate is the type for injecting secrets into a file.
 	SyncTypeTemplate SyncType = "template"
+
+	// SyncTypeGitHub is the type for injecting secrets into GitHub Actions.
+	SyncTypeGitHub SyncType = "github"
 )
 
 func ParseConfig(filename string) (*Config, error) {

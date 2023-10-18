@@ -12,6 +12,9 @@ import (
 // errNotSupported is an error sentinel that the backend not supported the type.
 var errNotSupported = errors.New("opsync: not supported")
 
+// errSkip is an error sentinel that the backend skip the type.
+var errSkip = errors.New("opsync: skip")
+
 type Planner struct {
 	cgf      *Config
 	svc      *op.Service
@@ -24,6 +27,7 @@ func NewPlanner(cfg *Config, svc *op.Service) *Planner {
 		svc: svc,
 		backends: []Backend{
 			NewTemplateBackend(svc),
+			NewGitHubBackend(svc),
 		},
 	}
 }
@@ -44,6 +48,7 @@ func (p *Planner) Plan(ctx context.Context) ([]Plan, error) {
 
 	// do planning
 	plans := make([]Plan, 0, len(keys))
+LOOP:
 	for _, key := range keys {
 		slog.InfoContext(ctx, "planning", slog.String("key", key))
 		cfg := p.cgf.Secrets[key]
@@ -52,11 +57,16 @@ func (p *Planner) Plan(ctx context.Context) ([]Plan, error) {
 			if errors.Is(err, errNotSupported) {
 				continue
 			}
+			if errors.Is(err, errSkip) {
+				continue LOOP
+			}
 			if err != nil {
 				return nil, err
 			}
 			plans = append(plans, plan)
+			continue LOOP
 		}
+		slog.WarnContext(ctx, "no backend found", slog.String("key", key))
 	}
 	return plans, nil
 }

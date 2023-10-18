@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/shogo82148/op-sync/internal/gh"
 	"github.com/shogo82148/op-sync/internal/op"
 )
 
@@ -48,4 +49,46 @@ func (p *TemplatePlan) Apply(ctx context.Context) error {
 		return err
 	}
 	return os.WriteFile(p.output, data, 0600)
+}
+
+var _ Backend = (*GitHubBackend)(nil)
+
+// GitHubBackend is a backend for SyncTypeGitHub.
+type GitHubBackend struct {
+	op *op.Service
+	gh *gh.Service
+}
+
+func NewGitHubBackend(svc *op.Service) *GitHubBackend {
+	return &GitHubBackend{op: svc, gh: gh.NewService()}
+}
+
+func (b *GitHubBackend) Plan(ctx context.Context, cfg *SyncConfig) (Plan, error) {
+	if cfg.Type != SyncTypeGitHub {
+		return nil, errNotSupported
+	}
+
+	log.Println(b.gh.UserInfo(ctx))
+
+	return &GitHubPlan{
+		backend:   b,
+		repo:      cfg.Repository,
+		secret:    cfg.Name,
+		overwrite: true,
+	}, nil
+}
+
+type GitHubPlan struct {
+	backend   *GitHubBackend
+	repo      string
+	secret    string
+	overwrite bool
+}
+
+func (p *GitHubPlan) Preview() string {
+	return ""
+}
+
+func (p *GitHubPlan) Apply(ctx context.Context) error {
+	return nil
 }
