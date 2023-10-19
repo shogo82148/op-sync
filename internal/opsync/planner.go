@@ -9,22 +9,26 @@ import (
 	"github.com/shogo82148/op-sync/internal/backends"
 	"github.com/shogo82148/op-sync/internal/backends/template"
 	"github.com/shogo82148/op-sync/internal/maputils"
-	"github.com/shogo82148/op-sync/internal/op"
+	"github.com/shogo82148/op-sync/internal/services"
 )
 
 type Planner struct {
-	cgf      *Config
-	svc      *op.Service
+	cfg      *PlannerOptions
 	backends map[string]backends.Backend
 }
 
-func NewPlanner(cfg *Config, svc *op.Service) *Planner {
+type PlannerOptions struct {
+	Config *Config
+	services.WhoAmIer
+	services.Injector
+}
+
+func NewPlanner(cfg *PlannerOptions) *Planner {
 	return &Planner{
-		cgf: cfg,
-		svc: svc,
+		cfg: cfg,
 		backends: map[string]backends.Backend{
 			"template": template.New(&template.Options{
-				Injector: svc,
+				Injector: cfg.Injector,
 			}),
 		},
 	}
@@ -32,14 +36,15 @@ func NewPlanner(cfg *Config, svc *op.Service) *Planner {
 
 func (p *Planner) Plan(ctx context.Context) ([]backends.Plan, error) {
 	// check 1password cli is available.
-	userInfo, err := p.svc.Whoami(ctx)
+	userInfo, err := p.cfg.WhoAmI(ctx)
 	if err != nil {
 		return nil, err
 	}
 	slog.InfoContext(ctx, "1password user information", slog.String("url", userInfo.URL), slog.String("email", userInfo.Email))
 
-	keys := make([]string, 0, len(p.cgf.Secrets))
-	for key := range p.cgf.Secrets {
+	secrets := p.cfg.Config.Secrets
+	keys := make([]string, 0, len(secrets))
+	for key := range secrets {
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
@@ -47,8 +52,8 @@ func (p *Planner) Plan(ctx context.Context) ([]backends.Plan, error) {
 	// do planning
 	plans := make([]backends.Plan, 0, len(keys))
 	for _, key := range keys {
-		slog.InfoContext(ctx, "planning", slog.String("key", key))
-		cfg := p.cgf.Secrets[key]
+		slog.DebugContext(ctx, "planning", slog.String("key", key))
+		cfg := secrets[key]
 		c := new(maputils.Context)
 		typ := maputils.Must[string](c, cfg, "type")
 		if err := c.Err(); err != nil {

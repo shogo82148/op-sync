@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os/exec"
+	"strings"
 
 	"github.com/shogo82148/op-sync/internal/services"
 )
@@ -35,4 +36,13 @@ func (s *Service) WhoAmI(ctx context.Context) (*services.OnePasswordUser, error)
 		return nil, err
 	}
 	return &info, nil
+}
+
+var _ services.Injector = (*Service)(nil)
+
+// Injector inject the secrets into the template.
+func (s *Service) Inject(ctx context.Context, tmpl string) ([]byte, error) {
+	cmd := command(ctx, "op", "inject")
+	cmd.Stdin = strings.NewReader(tmpl)
+	return cmd.Output()
 }
