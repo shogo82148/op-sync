@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/Songmu/prompter"
+	"github.com/shogo82148/op-sync/internal/services/gh"
 	"github.com/shogo82148/op-sync/internal/services/op"
 )
 
@@ -81,10 +82,16 @@ func (app *App) Run(ctx context.Context) error {
 	}
 
 	op := op.NewService()
+	gh := gh.NewService()
 	planner := NewPlanner(&PlannerOptions{
-		Config:   cfg,
-		WhoAmIer: op,
-		Injector: op,
+		Config:                    cfg,
+		WhoAmIer:                  op,
+		Injector:                  op,
+		OnePasswordItemGetter:     op,
+		OnePasswordReader:         op,
+		GitHubRepoSecretGetter:    gh,
+		GitHubRepoSecretCreator:   gh,
+		GitHubRepoPublicKeyGetter: gh,
 	})
 	plans, err := planner.Plan(ctx)
 	if err != nil {

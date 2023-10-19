@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/shogo82148/op-sync/internal/backends"
+	"github.com/shogo82148/op-sync/internal/backends/github"
 	"github.com/shogo82148/op-sync/internal/backends/template"
 	"github.com/shogo82148/op-sync/internal/maputils"
 	"github.com/shogo82148/op-sync/internal/services"
@@ -21,6 +22,11 @@ type PlannerOptions struct {
 	Config *Config
 	services.WhoAmIer
 	services.Injector
+	services.OnePasswordItemGetter
+	services.OnePasswordReader
+	services.GitHubRepoSecretGetter
+	services.GitHubRepoSecretCreator
+	services.GitHubRepoPublicKeyGetter
 }
 
 func NewPlanner(cfg *PlannerOptions) *Planner {
@@ -29,6 +35,13 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 		backends: map[string]backends.Backend{
 			"template": template.New(&template.Options{
 				Injector: cfg.Injector,
+			}),
+			"github": github.New(&github.Options{
+				OnePasswordItemGetter:     cfg.OnePasswordItemGetter,
+				OnePasswordReader:         cfg.OnePasswordReader,
+				GitHubRepoSecretGetter:    cfg.GitHubRepoSecretGetter,
+				GitHubRepoSecretCreator:   cfg.GitHubRepoSecretCreator,
+				GitHubRepoPublicKeyGetter: cfg.GitHubRepoPublicKeyGetter,
 			}),
 		},
 	}
