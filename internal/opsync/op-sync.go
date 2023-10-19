@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/shogo82148/op-sync/internal/op"
+	"github.com/shogo82148/op-sync/internal/services/op"
 )
 
 func Run(ctx context.Context, args []string) int {
@@ -22,7 +22,11 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	op := op.NewService()
-	planner := NewPlanner(cfg, op)
+	planner := NewPlanner(&PlannerOptions{
+		Config:   cfg,
+		WhoAmIer: op,
+		Injector: op,
+	})
 	plans, err := planner.Plan(ctx)
 	if err != nil {
 		return err
