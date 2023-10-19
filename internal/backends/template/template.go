@@ -43,6 +43,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	}
 	return []backends.Plan{
 		&Plan{
+			backend:   b,
 			output:    output,
 			template:  template,
 			overwrite: overwrite,
@@ -53,6 +54,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 var _ backends.Plan = (*Plan)(nil)
 
 type Plan struct {
+	backend   *Backend
 	output    string
 	template  string
 	overwrite bool
@@ -66,5 +68,15 @@ func (p *Plan) Preview() string {
 }
 
 func (p *Plan) Apply(ctx context.Context) error {
-	return nil
+	data, err := p.backend.opts.Inject(ctx, p.template)
+	if err != nil {
+		return err
+	}
+
+	tmp := fmt.Sprintf("%s.%d.tmp", p.output, os.Getpid())
+	defer os.Remove(tmp)
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, p.output)
 }
