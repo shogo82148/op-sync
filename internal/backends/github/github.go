@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/google/go-github/v56/github"
@@ -37,6 +38,14 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	name := params["name"].(string)             // TODO: validation
 	source := params["source"].(string)         // TODO: validation
 
+	uri, err := url.Parse(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source: %w", err)
+	}
+	if uri.Scheme != "op" {
+		return nil, fmt.Errorf("github: invalid source: %q", source)
+	}
+
 	owner, repo, ok := strings.Cut(repository, "/")
 	if !ok {
 		return nil, fmt.Errorf("github: invalid repository name %q", repository)
@@ -55,8 +64,18 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return nil, fmt.Errorf("failed to get GitHub repo secret: %w", err)
 	}
 
-	// TODO: check the secret is up-to-date
-	_ = secret
+	// check the secret is up-to-date
+	path := strings.TrimPrefix(uri.Path, "/")
+	item, _, _ := strings.Cut(path, "/")
+	opItem, err := b.opts.GetOnePasswordItem(ctx, uri.Host, item)
+	if err != nil {
+		return nil, err
+	}
+
+	if secret.UpdatedAt.After(opItem.UpdatedAt) {
+		// the secret is up-to-date.
+		return []backends.Plan{}, nil
+	}
 
 	return b.planRepoSecret(ctx, owner, repo, name, source)
 }
