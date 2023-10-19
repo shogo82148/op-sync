@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/google/go-github/v56/github"
 	"github.com/shogo82148/op-sync/internal/backends"
+	"github.com/shogo82148/op-sync/internal/maputils"
 	"github.com/shogo82148/op-sync/internal/services"
+	"github.com/shogo82148/op-sync/internal/services/op"
 	"golang.org/x/crypto/nacl/box"
 )
 
@@ -24,9 +25,13 @@ type Backend struct {
 type Options struct {
 	services.OnePasswordItemGetter
 	services.OnePasswordReader
+	services.GitHubRepoGetter
 	services.GitHubRepoSecretGetter
 	services.GitHubRepoSecretCreator
 	services.GitHubRepoPublicKeyGetter
+	services.GitHubEnvSecretGetter
+	services.GitHubEnvSecretCreator
+	services.GitHubEnvPublicKeyGetter
 }
 
 func New(opts *Options) *Backend {
@@ -34,40 +39,59 @@ func New(opts *Options) *Backend {
 }
 
 func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.Plan, error) {
-	repository := params["repository"].(string) // TODO: validation
-	name := params["name"].(string)             // TODO: validation
-	source := params["source"].(string)         // TODO: validation
-
-	uri, err := url.Parse(source)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse source: %w", err)
-	}
-	if uri.Scheme != "op" {
-		return nil, fmt.Errorf("github: invalid source: %q", source)
+	c := new(maputils.Context)
+	organization, hasOrganization := maputils.Get[string](c, params, "organization")
+	repository, hasRepository := maputils.Get[string](c, params, "repository")
+	environment, hasEnvironment := maputils.Get[string](c, params, "environment")
+	name := maputils.Must[string](c, params, "name")
+	source := maputils.Must[string](c, params, "source")
+	if err := c.Err(); err != nil {
+		return nil, fmt.Errorf("github: validation failed: %w", err)
 	}
 
-	owner, repo, ok := strings.Cut(repository, "/")
-	if !ok {
-		return nil, fmt.Errorf("github: invalid repository name %q", repository)
+	if hasOrganization {
+		// TODO: implement
+		_ = organization
 	}
-	secret, err := b.opts.GetGitHubRepoSecret(ctx, owner, repo, name)
 
-	var ghErr *github.ErrorResponse
-	if errors.As(err, &ghErr) {
-		if ghErr.Response.StatusCode == http.StatusNotFound {
-			// the secret is not found.
-			// we should create it.
+	if hasRepository {
+		owner, repo, ok := strings.Cut(repository, "/")
+		if !ok {
+			return nil, fmt.Errorf("github: invalid repository name %q", repository)
+		}
+		if hasEnvironment {
+			return b.planEnvSecret(ctx, owner, repo, environment, name, source)
+		} else {
 			return b.planRepoSecret(ctx, owner, repo, name, source)
 		}
+	}
+
+	return []backends.Plan{}, nil
+}
+
+func isNotFound(err error) bool {
+	var ghErr *github.ErrorResponse
+	return errors.As(err, &ghErr) && ghErr.Response.StatusCode == http.StatusNotFound
+}
+
+func (b *Backend) planRepoSecret(ctx context.Context, owner, repo, name, source string) ([]backends.Plan, error) {
+	secret, err := b.opts.GetGitHubRepoSecret(ctx, owner, repo, name)
+	if isNotFound(err) {
+		// the secret is not found.
+		// we should create it.
+		return b.newPlanRepoSecret(ctx, owner, repo, name, source)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub repo secret: %w", err)
 	}
 
+	uri, err := op.ParseURI(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source: %w", err)
+	}
+
 	// check the secret is up-to-date
-	path := strings.TrimPrefix(uri.Path, "/")
-	item, _, _ := strings.Cut(path, "/")
-	opItem, err := b.opts.GetOnePasswordItem(ctx, uri.Host, item)
+	opItem, err := b.opts.GetOnePasswordItem(ctx, uri.Vault, uri.Item)
 	if err != nil {
 		return nil, err
 	}
@@ -77,10 +101,10 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return []backends.Plan{}, nil
 	}
 
-	return b.planRepoSecret(ctx, owner, repo, name, source)
+	return b.newPlanRepoSecret(ctx, owner, repo, name, source)
 }
 
-func (b *Backend) planRepoSecret(ctx context.Context, owner, repo, name, source string) ([]backends.Plan, error) {
+func (b *Backend) newPlanRepoSecret(ctx context.Context, owner, repo, name, source string) ([]backends.Plan, error) {
 	// get the public key
 	key, err := b.opts.GetGitHubRepoPublicKey(ctx, owner, repo)
 	if err != nil {
@@ -104,6 +128,74 @@ func (b *Backend) planRepoSecret(ctx context.Context, owner, repo, name, source 
 			backend:         b,
 			owner:           owner,
 			repo:            repo,
+			name:            name,
+			keyID:           key.GetKeyID(),
+			encryptedSecret: encryptedSecret,
+			overwrite:       false,
+		},
+	}, nil
+}
+
+func (b *Backend) planEnvSecret(ctx context.Context, owner, repo, env, name, source string) ([]backends.Plan, error) {
+	ghRepo, err := b.opts.GetGitHubRepo(ctx, owner, repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub repo: %w", err)
+	}
+	secret, err := b.opts.GetGitHubEnvSecret(ctx, int(ghRepo.GetID()), env, name)
+	if isNotFound(err) {
+		// the secret is not found.
+		// we should create it.
+		return b.newPlanEnvSecret(ctx, ghRepo, env, name, source)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub repo secret: %w", err)
+	}
+
+	uri, err := op.ParseURI(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source: %w", err)
+	}
+
+	// check the secret is up-to-date
+	opItem, err := b.opts.GetOnePasswordItem(ctx, uri.Vault, uri.Item)
+	if err != nil {
+		return nil, err
+	}
+
+	if secret.UpdatedAt.After(opItem.UpdatedAt) {
+		// the secret is up-to-date.
+		return []backends.Plan{}, nil
+	}
+
+	return b.newPlanEnvSecret(ctx, ghRepo, env, name, source)
+}
+
+func (b *Backend) newPlanEnvSecret(ctx context.Context, ghRepo *github.Repository, env, name, source string) ([]backends.Plan, error) {
+	// get the public key
+	key, err := b.opts.GetGitHubEnvPublicKey(ctx, int(ghRepo.GetID()), env)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub environment public key: %w", err)
+	}
+
+	// get the secret from 1password
+	secret, err := b.opts.ReadOnePassword(ctx, source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read secret from 1password: %w", err)
+	}
+
+	// encrypt the secret
+	encryptedSecret, err := encryptSecret(key.GetKey(), secret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt secret: %w", err)
+	}
+
+	return []backends.Plan{
+		&PlanEnvSecret{
+			backend:         b,
+			owner:           ghRepo.GetOwner().GetLogin(),
+			repo:            ghRepo.GetName(),
+			repoID:          ghRepo.GetID(),
+			env:             env,
 			name:            name,
 			keyID:           key.GetKeyID(),
 			encryptedSecret: encryptedSecret,
@@ -158,4 +250,34 @@ func (p *PlanRepoSecret) Apply(ctx context.Context) error {
 		EncryptedValue: p.encryptedSecret,
 	}
 	return p.backend.opts.CreateGitHubRepoSecret(ctx, p.owner, p.repo, eSecret)
+}
+
+var _ backends.Plan = (*PlanEnvSecret)(nil)
+
+type PlanEnvSecret struct {
+	backend         *Backend
+	owner           string
+	repo            string
+	repoID          int64
+	env             string
+	name            string
+	keyID           string
+	encryptedSecret string
+	overwrite       bool
+}
+
+func (p *PlanEnvSecret) Preview() string {
+	if p.overwrite {
+		return fmt.Sprintf("secret %q in %s/%s environment %s will be updated", p.name, p.owner, p.repo, p.env)
+	}
+	return fmt.Sprintf("secret %q in %s/%s environment %s will be created", p.name, p.owner, p.repo, p.env)
+}
+
+func (p *PlanEnvSecret) Apply(ctx context.Context) error {
+	eSecret := &github.EncryptedSecret{
+		Name:           p.name,
+		KeyID:          p.keyID,
+		EncryptedValue: p.encryptedSecret,
+	}
+	return p.backend.opts.CreateGitHubEnvSecret(ctx, int(p.repoID), p.env, eSecret)
 }

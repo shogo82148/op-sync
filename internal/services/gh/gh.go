@@ -70,6 +70,23 @@ func (s *Service) GetGitHubUser(ctx context.Context) (*github.User, error) {
 	return u, nil
 }
 
+var _ services.GitHubRepoGetter = (*Service)(nil)
+
+// GetGitHubRepo fetches the GitHub repository.
+func (s *Service) GetGitHubRepo(ctx context.Context, owner, repo string) (*github.Repository, error) {
+	client, err := s.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "get the repo", slog.String("owner", owner), slog.String("repo", repo))
+	r, _, err := client.Repositories.Get(ctx, owner, repo)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
 var _ services.GitHubRepoSecretGetter = (*Service)(nil)
 
 // GetGitHubRepoSecret gets a single repository secret without revealing its encrypted value.
@@ -112,6 +129,53 @@ func (s *Service) GetGitHubRepoPublicKey(ctx context.Context, owner, repo string
 
 	slog.DebugContext(ctx, "get the repo public key", slog.String("owner", owner), slog.String("repo", repo))
 	key, _, err := client.Actions.GetRepoPublicKey(ctx, owner, repo)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+var _ services.GitHubEnvSecretGetter = (*Service)(nil)
+
+// GetGitHubEvSecret gets a single environment secret without revealing its encrypted value.
+func (s *Service) GetGitHubEnvSecret(ctx context.Context, repoID int, env, name string) (*github.Secret, error) {
+	client, err := s.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "get the environment secret", slog.Int("repoID", repoID), slog.String("name", name))
+	secret, _, err := client.Actions.GetEnvSecret(ctx, repoID, env, name)
+	if err != nil {
+		return nil, err
+	}
+	return secret, nil
+}
+
+var _ services.GitHubEnvSecretCreator = (*Service)(nil)
+
+// CreateGitHubEnvSecret creates or updates a single environment secret with an encrypted value.
+func (s *Service) CreateGitHubEnvSecret(ctx context.Context, repoID int, env string, secret *github.EncryptedSecret) error {
+	client, err := s.client(ctx)
+	if err != nil {
+		return err
+	}
+
+	slog.DebugContext(ctx, "create or update the environment secret", slog.Int("repoID", repoID), slog.String("name", secret.Name))
+	_, err = client.Actions.CreateOrUpdateEnvSecret(ctx, repoID, env, secret)
+	return err
+}
+
+var _ services.GitHubEnvPublicKeyGetter = (*Service)(nil)
+
+func (s *Service) GetGitHubEnvPublicKey(ctx context.Context, repoID int, env string) (*github.PublicKey, error) {
+	client, err := s.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "get the environment public key", slog.Int("repoID", repoID), slog.String("env", env))
+	key, _, err := client.Actions.GetEnvPublicKey(ctx, repoID, env)
 	if err != nil {
 		return nil, err
 	}

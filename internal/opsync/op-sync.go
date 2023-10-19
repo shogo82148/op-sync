@@ -89,9 +89,13 @@ func (app *App) Run(ctx context.Context) error {
 		Injector:                  op,
 		OnePasswordItemGetter:     op,
 		OnePasswordReader:         op,
+		GitHubRepoGetter:          gh,
 		GitHubRepoSecretGetter:    gh,
 		GitHubRepoSecretCreator:   gh,
 		GitHubRepoPublicKeyGetter: gh,
+		GitHubEnvSecretGetter:     gh,
+		GitHubEnvSecretCreator:    gh,
+		GitHubEnvPublicKeyGetter:  gh,
 	})
 	plans, err := planner.Plan(ctx)
 	if err != nil {

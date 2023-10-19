@@ -24,9 +24,13 @@ type PlannerOptions struct {
 	services.Injector
 	services.OnePasswordItemGetter
 	services.OnePasswordReader
+	services.GitHubRepoGetter
 	services.GitHubRepoSecretGetter
 	services.GitHubRepoSecretCreator
 	services.GitHubRepoPublicKeyGetter
+	services.GitHubEnvSecretGetter
+	services.GitHubEnvSecretCreator
+	services.GitHubEnvPublicKeyGetter
 }
 
 func NewPlanner(cfg *PlannerOptions) *Planner {
@@ -39,9 +43,13 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 			"github": github.New(&github.Options{
 				OnePasswordItemGetter:     cfg.OnePasswordItemGetter,
 				OnePasswordReader:         cfg.OnePasswordReader,
+				GitHubRepoGetter:          cfg.GitHubRepoGetter,
 				GitHubRepoSecretGetter:    cfg.GitHubRepoSecretGetter,
 				GitHubRepoSecretCreator:   cfg.GitHubRepoSecretCreator,
 				GitHubRepoPublicKeyGetter: cfg.GitHubRepoPublicKeyGetter,
+				GitHubEnvSecretGetter:     cfg.GitHubEnvSecretGetter,
+				GitHubEnvSecretCreator:    cfg.GitHubEnvSecretCreator,
+				GitHubEnvPublicKeyGetter:  cfg.GitHubEnvPublicKeyGetter,
 			}),
 		},
 	}

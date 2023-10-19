@@ -6,11 +6,75 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os/exec"
 	"strings"
 
 	"github.com/shogo82148/op-sync/internal/services"
 )
+
+type URI struct {
+	Vault     string
+	Item      string
+	Section   string
+	Field     string
+	Attribute string
+}
+
+func (u *URI) String() string {
+	var path string
+	if u.Section == "" {
+		path = fmt.Sprintf("%s/%s", u.Item, u.Field)
+	} else {
+		path = fmt.Sprintf("%s/%s/%s", u.Item, u.Section, u.Field)
+	}
+
+	q := url.Values{}
+	if u.Attribute != "" {
+		q.Set("attribute", u.Attribute)
+	}
+
+	v := url.URL{
+		Scheme:   "op",
+		Host:     u.Vault,
+		Path:     path,
+		RawQuery: q.Encode(),
+	}
+	return v.String()
+}
+
+func ParseURI(uri string) (*URI, error) {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.Scheme != "op" {
+		return nil, fmt.Errorf("unknown scheme: %q", u.Scheme)
+	}
+
+	path := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
+	var item, section, field, attribute string
+	if len(path) == 2 {
+		item = path[0]
+		field = path[1]
+	} else if len(path) == 3 {
+		item = path[0]
+		section = path[1]
+		field = path[2]
+	} else {
+		return nil, fmt.Errorf("invalid path: %q", u.Path)
+	}
+	attribute = u.Query().Get("attribute")
+
+	return &URI{
+		Vault:     u.Host,
+		Item:      item,
+		Section:   section,
+		Field:     field,
+		Attribute: attribute,
+	}, nil
+}
 
 func command(ctx context.Context, name string, args ...string) *exec.Cmd {
 	slog.DebugContext(ctx, "run 1password cli", slog.String("name", name), slog.Any("args", args))
