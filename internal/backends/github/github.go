@@ -234,7 +234,7 @@ func (b *Backend) planOrgSecret(ctx context.Context, app services.GitHubApplicat
 	if isNotFound(err) {
 		// the secret is not found.
 		// we should create it.
-		return b.newPlanOrgSecret(ctx, app, org, name, source, false)
+		return b.newPlanOrgSecret(ctx, app, org, name, source, false, "selected", []int64{})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub org secret: %w", err)
@@ -256,10 +256,10 @@ func (b *Backend) planOrgSecret(ctx context.Context, app services.GitHubApplicat
 		return []backends.Plan{}, nil
 	}
 
-	return b.newPlanOrgSecret(ctx, app, org, name, source, true)
+	return b.newPlanOrgSecret(ctx, app, org, name, source, true, secret.Visibility, []int64{})
 }
 
-func (b *Backend) newPlanOrgSecret(ctx context.Context, app services.GitHubApplication, organization, name, source string, overwrite bool) ([]backends.Plan, error) {
+func (b *Backend) newPlanOrgSecret(ctx context.Context, app services.GitHubApplication, organization, name, source string, overwrite bool, visibility string, reposID []int64) ([]backends.Plan, error) {
 	// get the public key
 	key, err := b.opts.GetGitHubOrgPublicKey(ctx, organization)
 	if err != nil {
@@ -284,6 +284,8 @@ func (b *Backend) newPlanOrgSecret(ctx context.Context, app services.GitHubAppli
 			app:             app,
 			org:             organization,
 			name:            name,
+			visibility:      visibility,
+			reposID:         reposID,
 			keyID:           key.GetKeyID(),
 			encryptedSecret: encryptedSecret,
 			overwrite:       overwrite,
@@ -379,6 +381,8 @@ type PlanOrgSecret struct {
 	name            string
 	keyID           string
 	encryptedSecret string
+	visibility      string
+	reposID         []int64
 	overwrite       bool
 }
 
@@ -391,9 +395,11 @@ func (p *PlanOrgSecret) Preview() string {
 
 func (p *PlanOrgSecret) Apply(ctx context.Context) error {
 	eSecret := &github.EncryptedSecret{
-		Name:           p.name,
-		KeyID:          p.keyID,
-		EncryptedValue: p.encryptedSecret,
+		Name:                  p.name,
+		KeyID:                 p.keyID,
+		EncryptedValue:        p.encryptedSecret,
+		Visibility:            p.visibility,
+		SelectedRepositoryIDs: p.reposID,
 	}
 	return p.backend.opts.CreateGitHubOrgSecret(ctx, p.app, p.org, eSecret)
 }

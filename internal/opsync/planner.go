@@ -31,6 +31,9 @@ type PlannerOptions struct {
 	services.GitHubEnvSecretGetter
 	services.GitHubEnvSecretCreator
 	services.GitHubEnvPublicKeyGetter
+	services.GitHubOrgSecretGetter
+	services.GitHubOrgSecretCreator
+	services.GitHubOrgPublicKeyGetter
 }
 
 func NewPlanner(cfg *PlannerOptions) *Planner {
@@ -50,6 +53,9 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 				GitHubEnvSecretGetter:     cfg.GitHubEnvSecretGetter,
 				GitHubEnvSecretCreator:    cfg.GitHubEnvSecretCreator,
 				GitHubEnvPublicKeyGetter:  cfg.GitHubEnvPublicKeyGetter,
+				GitHubOrgSecretGetter:     cfg.GitHubOrgSecretGetter,
+				GitHubOrgSecretCreator:    cfg.GitHubOrgSecretCreator,
+				GitHubOrgPublicKeyGetter:  cfg.GitHubOrgPublicKeyGetter,
 			}),
 		},
 	}

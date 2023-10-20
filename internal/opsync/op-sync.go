@@ -96,6 +96,9 @@ func (app *App) Run(ctx context.Context) error {
 		GitHubEnvSecretGetter:     gh,
 		GitHubEnvSecretCreator:    gh,
 		GitHubEnvPublicKeyGetter:  gh,
+		GitHubOrgSecretGetter:     gh,
+		GitHubOrgSecretCreator:    gh,
+		GitHubOrgPublicKeyGetter:  gh,
 	})
 	plans, err := planner.Plan(ctx)
 	if err != nil {
