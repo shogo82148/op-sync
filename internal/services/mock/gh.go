@@ -82,19 +82,19 @@ func (f GitHubEnvPublicKeyGetter) GetGitHubEnvPublicKey(ctx context.Context, rep
 var _ services.GitHubOrgSecretGetter = GitHubOrgSecretGetter(nil)
 
 // GitHubOrgSecretGetter gets a single organization secret without revealing its encrypted value.
-type GitHubOrgSecretGetter func(ctx context.Context, org, name string) (*github.Secret, error)
+type GitHubOrgSecretGetter func(ctx context.Context, app services.GitHubApplication, org, name string) (*github.Secret, error)
 
-func (f GitHubOrgSecretGetter) GetGitHubOrgSecret(ctx context.Context, org, name string) (*github.Secret, error) {
-	return f(ctx, org, name)
+func (f GitHubOrgSecretGetter) GetGitHubOrgSecret(ctx context.Context, app services.GitHubApplication, org, name string) (*github.Secret, error) {
+	return f(ctx, app, org, name)
 }
 
 var _ services.GitHubOrgSecretCreator = GitHubOrgSecretCreator(nil)
 
 // GitHubOrgSecretCreator creates or updates a single organization secret with an encrypted value.
-type GitHubOrgSecretCreator func(ctx context.Context, org string, secret *github.EncryptedSecret) error
+type GitHubOrgSecretCreator func(ctx context.Context, app services.GitHubApplication, org string, secret *github.EncryptedSecret) error
 
-func (f GitHubOrgSecretCreator) CreateGitHubOrgSecret(ctx context.Context, org string, secret *github.EncryptedSecret) error {
-	return f(ctx, org, secret)
+func (f GitHubOrgSecretCreator) CreateGitHubOrgSecret(ctx context.Context, app services.GitHubApplication, org string, secret *github.EncryptedSecret) error {
+	return f(ctx, app, org, secret)
 }
 
 var _ services.GitHubOrgPublicKeyGetter = GitHubOrgPublicKeyGetter(nil)

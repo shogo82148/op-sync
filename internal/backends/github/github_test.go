@@ -391,14 +391,17 @@ func TestPlan_OrgSecret(t *testing.T) {
 		OnePasswordReader: mock.OnePasswordReader(func(ctx context.Context, uri string) ([]byte, error) {
 			return []byte("secret"), nil
 		}),
-		GitHubOrgSecretGetter: mock.GitHubOrgSecretGetter(func(ctx context.Context, org, name string) (*github.Secret, error) {
+		GitHubOrgSecretGetter: mock.GitHubOrgSecretGetter(func(ctx context.Context, app services.GitHubApplication, org, name string) (*github.Secret, error) {
 			return nil, &github.ErrorResponse{
 				Response: &http.Response{
 					StatusCode: http.StatusNotFound,
 				},
 			}
 		}),
-		GitHubOrgSecretCreator: mock.GitHubOrgSecretCreator(func(ctx context.Context, org string, secret *github.EncryptedSecret) error {
+		GitHubOrgSecretCreator: mock.GitHubOrgSecretCreator(func(ctx context.Context, app services.GitHubApplication, org string, secret *github.EncryptedSecret) error {
+			if app != services.GitHubApplicationActions {
+				t.Errorf("unexpected application: want actions, got %s", app)
+			}
 			if secret.Name != "VERY_SECRET_TOKEN" {
 				t.Errorf("unexpected name: want VERY_SECRET_TOKEN, got %s", secret.Name)
 			}

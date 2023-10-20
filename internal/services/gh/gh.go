@@ -208,14 +208,24 @@ func (s *Service) GetGitHubEnvPublicKey(ctx context.Context, repoID int, env str
 var _ services.GitHubOrgSecretGetter = (*Service)(nil)
 
 // GetGitHubOrgSecret gets a single organization secret without revealing its encrypted value.
-func (s *Service) GetGitHubOrgSecret(ctx context.Context, org, name string) (*github.Secret, error) {
+func (s *Service) GetGitHubOrgSecret(ctx context.Context, app services.GitHubApplication, org, name string) (*github.Secret, error) {
 	client, err := s.client(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "get the org secret", slog.String("org", org), slog.String("name", name))
-	secret, _, err := client.Actions.GetOrgSecret(ctx, org, name)
+	slog.DebugContext(ctx, "get the org secret", slog.String("application", string(app)), slog.String("org", org), slog.String("name", name))
+	var secret *github.Secret
+	switch app {
+	case services.GitHubApplicationActions:
+		secret, _, err = client.Actions.GetOrgSecret(ctx, org, name)
+	case services.GitHubApplicationDependabot:
+		secret, _, err = client.Dependabot.GetOrgSecret(ctx, org, name)
+	case services.GitHubApplicationCodespaces:
+		secret, _, err = client.Codespaces.GetOrgSecret(ctx, org, name)
+	default:
+		return nil, fmt.Errorf("unknown GitHub application: %s", app)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -225,14 +235,30 @@ func (s *Service) GetGitHubOrgSecret(ctx context.Context, org, name string) (*gi
 var _ services.GitHubOrgSecretCreator = (*Service)(nil)
 
 // CreateGitHubOrgSecret creates or updates an organization secret with an encrypted value.
-func (s *Service) CreateGitHubOrgSecret(ctx context.Context, org string, secret *github.EncryptedSecret) error {
+func (s *Service) CreateGitHubOrgSecret(ctx context.Context, app services.GitHubApplication, org string, secret *github.EncryptedSecret) error {
 	client, err := s.client(ctx)
 	if err != nil {
 		return err
 	}
 
-	slog.DebugContext(ctx, "create or update the org secret", slog.String("org", org), slog.String("name", secret.Name))
-	_, err = client.Actions.CreateOrUpdateOrgSecret(ctx, org, secret)
+	slog.DebugContext(ctx, "create or update the org secret", slog.String("application", string(app)), slog.String("org", org), slog.String("name", secret.Name))
+	switch app {
+	case services.GitHubApplicationActions:
+		_, err = client.Actions.CreateOrUpdateOrgSecret(ctx, org, secret)
+	case services.GitHubApplicationDependabot:
+		dSecret := &github.DependabotEncryptedSecret{
+			Name:                  secret.Name,
+			KeyID:                 secret.KeyID,
+			EncryptedValue:        secret.EncryptedValue,
+			Visibility:            secret.Visibility,
+			SelectedRepositoryIDs: github.DependabotSecretsSelectedRepoIDs(secret.SelectedRepositoryIDs),
+		}
+		_, err = client.Dependabot.CreateOrUpdateOrgSecret(ctx, org, dSecret)
+	case services.GitHubApplicationCodespaces:
+		_, err = client.Codespaces.CreateOrUpdateOrgSecret(ctx, org, secret)
+	default:
+		return fmt.Errorf("unknown GitHub application: %s", app)
+	}
 	return err
 }
 
