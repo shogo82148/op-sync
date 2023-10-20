@@ -6,6 +6,15 @@ import (
 	"github.com/google/go-github/v56/github"
 )
 
+// GitHubApplication represents a GitHub application for secret management.
+type GitHubApplication string
+
+const (
+	GitHubApplicationActions    GitHubApplication = "actions"
+	GitHubApplicationCodespaces GitHubApplication = "codespaces"
+	GitHubApplicationDependabot GitHubApplication = "dependabot"
+)
+
 // GitHubUserGetter fetches the authenticated GitHub user.
 type GitHubUserGetter interface {
 	GetGitHubUser(ctx context.Context) (*github.User, error)
@@ -18,12 +27,12 @@ type GitHubRepoGetter interface {
 
 // GitHubRepoSecretGetter gets a single repository secret without revealing its encrypted value.
 type GitHubRepoSecretGetter interface {
-	GetGitHubRepoSecret(ctx context.Context, owner, repo, name string) (*github.Secret, error)
+	GetGitHubRepoSecret(ctx context.Context, app GitHubApplication, owner, repo, name string) (*github.Secret, error)
 }
 
 // GitHubRepoSecretCreator creates or updates a repository secret with an encrypted value.
 type GitHubRepoSecretCreator interface {
-	CreateGitHubRepoSecret(ctx context.Context, owner, repo string, secret *github.EncryptedSecret) error
+	CreateGitHubRepoSecret(ctx context.Context, app GitHubApplication, owner, repo string, secret *github.EncryptedSecret) error
 }
 
 // GitHubRepoPublicKeyGetter gets a public key that should be used for secret encryption.

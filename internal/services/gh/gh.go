@@ -90,14 +90,24 @@ func (s *Service) GetGitHubRepo(ctx context.Context, owner, repo string) (*githu
 var _ services.GitHubRepoSecretGetter = (*Service)(nil)
 
 // GetGitHubRepoSecret gets a single repository secret without revealing its encrypted value.
-func (s *Service) GetGitHubRepoSecret(ctx context.Context, owner, repo, name string) (*github.Secret, error) {
+func (s *Service) GetGitHubRepoSecret(ctx context.Context, app services.GitHubApplication, owner, repo, name string) (*github.Secret, error) {
 	client, err := s.client(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "get the repo secret", slog.String("owner", owner), slog.String("repo", repo), slog.String("name", name))
-	secret, _, err := client.Actions.GetRepoSecret(ctx, owner, repo, name)
+	slog.DebugContext(ctx, "get the repo secret", slog.String("application", string(app)), slog.String("owner", owner), slog.String("repo", repo), slog.String("name", name))
+	var secret *github.Secret
+	switch app {
+	case services.GitHubApplicationActions:
+		secret, _, err = client.Actions.GetRepoSecret(ctx, owner, repo, name)
+	case services.GitHubApplicationDependabot:
+		secret, _, err = client.Dependabot.GetRepoSecret(ctx, owner, repo, name)
+	case services.GitHubApplicationCodespaces:
+		secret, _, err = client.Codespaces.GetRepoSecret(ctx, owner, repo, name)
+	default:
+		return nil, fmt.Errorf("unknown GitHub application: %s", app)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -107,14 +117,26 @@ func (s *Service) GetGitHubRepoSecret(ctx context.Context, owner, repo, name str
 var _ services.GitHubRepoSecretCreator = (*Service)(nil)
 
 // CreateGitHubRepoSecret creates or updates a repository secret with an encrypted value.
-func (s *Service) CreateGitHubRepoSecret(ctx context.Context, owner, repo string, secret *github.EncryptedSecret) error {
+func (s *Service) CreateGitHubRepoSecret(ctx context.Context, app services.GitHubApplication, owner, repo string, secret *github.EncryptedSecret) error {
 	client, err := s.client(ctx)
 	if err != nil {
 		return err
 	}
 
 	slog.DebugContext(ctx, "create or update the repo secret", slog.String("owner", owner), slog.String("repo", repo), slog.String("name", secret.Name))
-	_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, owner, repo, secret)
+	switch app {
+	case services.GitHubApplicationActions:
+		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, owner, repo, secret)
+	case services.GitHubApplicationDependabot:
+		dSecret := &github.DependabotEncryptedSecret{
+			Name:           secret.Name,
+			KeyID:          secret.KeyID,
+			EncryptedValue: secret.EncryptedValue,
+		}
+		_, err = client.Dependabot.CreateOrUpdateRepoSecret(ctx, owner, repo, dSecret)
+	case services.GitHubApplicationCodespaces:
+		_, err = client.Codespaces.CreateOrUpdateRepoSecret(ctx, owner, repo, secret)
+	}
 	return err
 }
 

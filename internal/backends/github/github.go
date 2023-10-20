@@ -46,6 +46,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	organization, hasOrganization := maputils.Get[string](c, params, "organization")
 	repository, hasRepository := maputils.Get[string](c, params, "repository")
 	environment, hasEnvironment := maputils.Get[string](c, params, "environment")
+	application, hasApplication := maputils.Get[string](c, params, "application")
 	name := maputils.Must[string](c, params, "name")
 	source := maputils.Must[string](c, params, "source")
 	if err := c.Err(); err != nil {
@@ -54,6 +55,24 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 
 	if hasOrganization && hasRepository {
 		return nil, errors.New("github: both organization and repository are specified")
+	}
+	if hasEnvironment && hasApplication {
+		return nil, errors.New("github: both environment and application are specified")
+	}
+
+	var app services.GitHubApplication
+	switch application {
+	case "actions":
+		app = services.GitHubApplicationActions
+	case "codespaces":
+		app = services.GitHubApplicationCodespaces
+	case "dependabot":
+		app = services.GitHubApplicationDependabot
+	default:
+		if hasApplication {
+			return nil, fmt.Errorf("github: unknown application %q", application)
+		}
+		app = services.GitHubApplicationActions
 	}
 
 	if hasOrganization {
@@ -68,7 +87,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		if hasEnvironment {
 			return b.planEnvSecret(ctx, owner, repo, environment, name, source)
 		} else {
-			return b.planRepoSecret(ctx, owner, repo, name, source)
+			return b.planRepoSecret(ctx, app, owner, repo, name, source)
 		}
 	}
 
@@ -80,8 +99,8 @@ func isNotFound(err error) bool {
 	return errors.As(err, &ghErr) && ghErr.Response.StatusCode == http.StatusNotFound
 }
 
-func (b *Backend) planRepoSecret(ctx context.Context, owner, repo, name, source string) ([]backends.Plan, error) {
-	secret, err := b.opts.GetGitHubRepoSecret(ctx, owner, repo, name)
+func (b *Backend) planRepoSecret(ctx context.Context, app services.GitHubApplication, owner, repo, name, source string) ([]backends.Plan, error) {
+	secret, err := b.opts.GetGitHubRepoSecret(ctx, app, owner, repo, name)
 	if isNotFound(err) {
 		// the secret is not found.
 		// we should create it.
@@ -295,6 +314,7 @@ var _ backends.Plan = (*PlanRepoSecret)(nil)
 
 type PlanRepoSecret struct {
 	backend         *Backend
+	app             services.GitHubApplication
 	owner           string
 	repo            string
 	name            string
@@ -316,7 +336,7 @@ func (p *PlanRepoSecret) Apply(ctx context.Context) error {
 		KeyID:          p.keyID,
 		EncryptedValue: p.encryptedSecret,
 	}
-	return p.backend.opts.CreateGitHubRepoSecret(ctx, p.owner, p.repo, eSecret)
+	return p.backend.opts.CreateGitHubRepoSecret(ctx, p.app, p.owner, p.repo, eSecret)
 }
 
 var _ backends.Plan = (*PlanEnvSecret)(nil)
