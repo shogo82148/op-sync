@@ -2,6 +2,7 @@
 package template
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -33,19 +34,28 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return nil, fmt.Errorf("template: validation failed: %w", err)
 	}
 
+	// inject the template
+	newData, err := b.opts.Inject(ctx, template)
+	if err != nil {
+		return nil, err
+	}
+
 	var overwrite bool
-	stat, err := os.Stat(output)
-	if err == nil {
-		if stat.IsDir() {
-			return nil, fmt.Errorf("template: %q is a directory", output)
+	oldData, err := os.ReadFile(output)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, err
 		}
-		overwrite = true
+	} else {
+		if bytes.Equal(oldData, newData) {
+			return []backends.Plan{}, nil
+		}
 	}
 	return []backends.Plan{
 		&Plan{
 			backend:   b,
 			output:    output,
-			template:  template,
+			newData:   newData,
 			overwrite: overwrite,
 		},
 	}, nil
@@ -56,7 +66,7 @@ var _ backends.Plan = (*Plan)(nil)
 type Plan struct {
 	backend   *Backend
 	output    string
-	template  string
+	newData   []byte
 	overwrite bool
 }
 
@@ -68,14 +78,9 @@ func (p *Plan) Preview() string {
 }
 
 func (p *Plan) Apply(ctx context.Context) error {
-	data, err := p.backend.opts.Inject(ctx, p.template)
-	if err != nil {
-		return err
-	}
-
 	tmp := fmt.Sprintf("%s.%d.tmp", p.output, os.Getpid())
 	defer os.Remove(tmp)
-	if err := os.WriteFile(tmp, data, 0600); err != nil {
+	if err := os.WriteFile(tmp, p.newData, 0600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, p.output)
