@@ -168,6 +168,7 @@ func (s *Service) CreateGitHubEnvSecret(ctx context.Context, repoID int, env str
 
 var _ services.GitHubEnvPublicKeyGetter = (*Service)(nil)
 
+// GetGitHubEnvPublicKey gets a public key that should be used for secret encryption.
 func (s *Service) GetGitHubEnvPublicKey(ctx context.Context, repoID int, env string) (*github.PublicKey, error) {
 	client, err := s.client(ctx)
 	if err != nil {
@@ -176,6 +177,54 @@ func (s *Service) GetGitHubEnvPublicKey(ctx context.Context, repoID int, env str
 
 	slog.DebugContext(ctx, "get the environment public key", slog.Int("repoID", repoID), slog.String("env", env))
 	key, _, err := client.Actions.GetEnvPublicKey(ctx, repoID, env)
+	if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+var _ services.GitHubOrgSecretGetter = (*Service)(nil)
+
+// GetGitHubOrgSecret gets a single organization secret without revealing its encrypted value.
+func (s *Service) GetGitHubOrgSecret(ctx context.Context, org, name string) (*github.Secret, error) {
+	client, err := s.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "get the org secret", slog.String("org", org), slog.String("name", name))
+	secret, _, err := client.Actions.GetOrgSecret(ctx, org, name)
+	if err != nil {
+		return nil, err
+	}
+	return secret, nil
+}
+
+var _ services.GitHubOrgSecretCreator = (*Service)(nil)
+
+// CreateGitHubOrgSecret creates or updates an organization secret with an encrypted value.
+func (s *Service) CreateGitHubOrgSecret(ctx context.Context, org string, secret *github.EncryptedSecret) error {
+	client, err := s.client(ctx)
+	if err != nil {
+		return err
+	}
+
+	slog.DebugContext(ctx, "create or update the org secret", slog.String("org", org), slog.String("name", secret.Name))
+	_, err = client.Actions.CreateOrUpdateOrgSecret(ctx, org, secret)
+	return err
+}
+
+var _ services.GitHubOrgPublicKeyGetter = (*Service)(nil)
+
+// GetGitHubOrgPublicKey gets a public key that should be used for secret encryption.
+func (s *Service) GetGitHubOrgPublicKey(ctx context.Context, org string) (*github.PublicKey, error) {
+	client, err := s.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "get the org public key", slog.String("org", org))
+	key, _, err := client.Actions.GetOrgPublicKey(ctx, org)
 	if err != nil {
 		return nil, err
 	}

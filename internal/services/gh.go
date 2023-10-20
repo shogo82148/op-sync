@@ -45,3 +45,18 @@ type GitHubEnvSecretCreator interface {
 type GitHubEnvPublicKeyGetter interface {
 	GetGitHubEnvPublicKey(ctx context.Context, repoID int, env string) (*github.PublicKey, error)
 }
+
+// GitHubOrgSecretGetter gets a single organization secret without revealing its encrypted value.
+type GitHubOrgSecretGetter interface {
+	GetGitHubOrgSecret(ctx context.Context, org, name string) (*github.Secret, error)
+}
+
+// GitHubOrgSecretCreator creates or updates a single organization secret with an encrypted value.
+type GitHubOrgSecretCreator interface {
+	CreateGitHubOrgSecret(ctx context.Context, org string, secret *github.EncryptedSecret) error
+}
+
+// GitHubOrgPublicKeyGetter gets a public key that should be used for secret encryption.
+type GitHubOrgPublicKeyGetter interface {
+	GetGitHubOrgPublicKey(ctx context.Context, org string) (*github.PublicKey, error)
+}
