@@ -32,6 +32,9 @@ type Options struct {
 	services.GitHubEnvSecretGetter
 	services.GitHubEnvSecretCreator
 	services.GitHubEnvPublicKeyGetter
+	services.GitHubOrgSecretGetter
+	services.GitHubOrgSecretCreator
+	services.GitHubOrgPublicKeyGetter
 }
 
 func New(opts *Options) *Backend {
@@ -49,9 +52,12 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return nil, fmt.Errorf("github: validation failed: %w", err)
 	}
 
+	if hasOrganization && hasRepository {
+		return nil, errors.New("github: both organization and repository are specified")
+	}
+
 	if hasOrganization {
-		// TODO: implement
-		_ = organization
+		return b.planOrgSecret(ctx, organization, name, source)
 	}
 
 	if hasRepository {
@@ -204,6 +210,67 @@ func (b *Backend) newPlanEnvSecret(ctx context.Context, ghRepo *github.Repositor
 	}, nil
 }
 
+func (b *Backend) planOrgSecret(ctx context.Context, organization, name, source string) ([]backends.Plan, error) {
+	secret, err := b.opts.GetGitHubOrgSecret(ctx, organization, name)
+	if isNotFound(err) {
+		// the secret is not found.
+		// we should create it.
+		return b.newPlanOrgSecret(ctx, organization, name, source, false)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub org secret: %w", err)
+	}
+
+	uri, err := op.ParseURI(source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source: %w", err)
+	}
+
+	// check the secret is up-to-date
+	opItem, err := b.opts.GetOnePasswordItem(ctx, uri.Vault, uri.Item)
+	if err != nil {
+		return nil, err
+	}
+
+	if secret.UpdatedAt.After(opItem.UpdatedAt) {
+		// the secret is up-to-date.
+		return []backends.Plan{}, nil
+	}
+
+	return b.newPlanOrgSecret(ctx, organization, name, source, true)
+}
+
+func (b *Backend) newPlanOrgSecret(ctx context.Context, organization, name, source string, overwrite bool) ([]backends.Plan, error) {
+	// get the public key
+	key, err := b.opts.GetGitHubOrgPublicKey(ctx, organization)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GitHub org public key: %w", err)
+	}
+
+	// get the secret from 1password
+	secret, err := b.opts.ReadOnePassword(ctx, source)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read secret from 1password: %w", err)
+	}
+
+	// encrypt the secret
+	encryptedSecret, err := encryptSecret(key.GetKey(), secret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt secret: %w", err)
+	}
+
+	return []backends.Plan{
+		&PlanOrgSecret{
+			backend:         b,
+			organization:    organization,
+			name:            name,
+			keyID:           key.GetKeyID(),
+			encryptedSecret: encryptedSecret,
+			overwrite:       overwrite,
+		},
+	}, nil
+}
+
 func encryptSecret(pubKey string, secret []byte) (string, error) {
 	decodedPubKey, err := base64.StdEncoding.DecodeString(pubKey)
 	if err != nil {
@@ -280,4 +347,31 @@ func (p *PlanEnvSecret) Apply(ctx context.Context) error {
 		EncryptedValue: p.encryptedSecret,
 	}
 	return p.backend.opts.CreateGitHubEnvSecret(ctx, int(p.repoID), p.env, eSecret)
+}
+
+var _ backends.Plan = (*PlanOrgSecret)(nil)
+
+type PlanOrgSecret struct {
+	backend         *Backend
+	organization    string
+	name            string
+	keyID           string
+	encryptedSecret string
+	overwrite       bool
+}
+
+func (p *PlanOrgSecret) Preview() string {
+	if p.overwrite {
+		return fmt.Sprintf("secret %q in organization %s will be updated", p.name, p.organization)
+	}
+	return fmt.Sprintf("secret %q in organization %s will be created", p.name, p.organization)
+}
+
+func (p *PlanOrgSecret) Apply(ctx context.Context) error {
+	eSecret := &github.EncryptedSecret{
+		Name:           p.name,
+		KeyID:          p.keyID,
+		EncryptedValue: p.encryptedSecret,
+	}
+	return p.backend.opts.CreateGitHubOrgSecret(ctx, p.organization, eSecret)
 }
