@@ -69,3 +69,8 @@ type GitHubOrgSecretCreator interface {
 type GitHubOrgPublicKeyGetter interface {
 	GetGitHubOrgPublicKey(ctx context.Context, org string) (*github.PublicKey, error)
 }
+
+// GitHubReposIDForOrgSecretLister lists all repositories that have access to a secret.
+type GitHubReposIDForOrgSecretLister interface {
+	ListGitHubReposIDForOrgSecret(ctx context.Context, app GitHubApplication, org, name string) ([]int64, error)
+}

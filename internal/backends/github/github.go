@@ -35,6 +35,7 @@ type Options struct {
 	services.GitHubOrgSecretGetter
 	services.GitHubOrgSecretCreator
 	services.GitHubOrgPublicKeyGetter
+	services.GitHubReposIDForOrgSecretLister
 }
 
 func New(opts *Options) *Backend {
@@ -256,7 +257,14 @@ func (b *Backend) planOrgSecret(ctx context.Context, app services.GitHubApplicat
 		return []backends.Plan{}, nil
 	}
 
-	return b.newPlanOrgSecret(ctx, app, org, name, source, true, secret.Visibility, []int64{})
+	var reposID []int64
+	if secret.Visibility == "selected" {
+		reposID, err = b.opts.ListGitHubReposIDForOrgSecret(ctx, app, org, name)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return b.newPlanOrgSecret(ctx, app, org, name, source, true, secret.Visibility, reposID)
 }
 
 func (b *Backend) newPlanOrgSecret(ctx context.Context, app services.GitHubApplication, organization, name, source string, overwrite bool, visibility string, reposID []int64) ([]backends.Plan, error) {

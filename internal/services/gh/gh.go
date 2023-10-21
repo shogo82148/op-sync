@@ -278,3 +278,43 @@ func (s *Service) GetGitHubOrgPublicKey(ctx context.Context, org string) (*githu
 	}
 	return key, nil
 }
+
+var _ services.GitHubReposIDForOrgSecretLister = (*Service)(nil)
+
+func (s *Service) ListGitHubReposIDForOrgSecret(ctx context.Context, app services.GitHubApplication, org, name string) ([]int64, error) {
+	client, err := s.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "list the repos for org secret", slog.String("org", org), slog.String("name", name))
+	var ids []int64
+	opt := &github.ListOptions{
+		Page:    1,
+		PerPage: 100,
+	}
+	for {
+		var repos *github.SelectedReposList
+		switch app {
+		case services.GitHubApplicationActions:
+			repos, _, err = client.Actions.ListSelectedReposForOrgSecret(ctx, org, name, opt)
+		case services.GitHubApplicationDependabot:
+			repos, _, err = client.Dependabot.ListSelectedReposForOrgSecret(ctx, org, name, opt)
+		case services.GitHubApplicationCodespaces:
+			repos, _, err = client.Codespaces.ListSelectedReposForOrgSecret(ctx, org, name, opt)
+		default:
+			return nil, fmt.Errorf("unknown GitHub application: %s", app)
+		}
+		if err != nil {
+			return nil, err
+		}
+		for _, repo := range repos.Repositories {
+			ids = append(ids, repo.GetID())
+		}
+		if len(ids) == repos.GetTotalCount() {
+			break
+		}
+		opt.Page++
+	}
+	return ids, nil
+}
