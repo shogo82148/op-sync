@@ -2,8 +2,10 @@ package awssecretsmanager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
@@ -39,6 +41,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	account := maputils.Must[string](c, params, "account")
 	region := maputils.Must[string](c, params, "region")
 	name := maputils.Must[string](c, params, "name")
+	template := maputils.Must[map[string]any](c, params, "template")
 	if err := c.Err(); err != nil {
 		return nil, fmt.Errorf("awsssm: validation failed: %w", err)
 	}
@@ -51,18 +54,29 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return []backends.Plan{}, nil
 	}
 
+	// inject the template
+	injected, err := b.inject(ctx, template)
+	if err != nil {
+		return nil, err
+	}
+
 	// check the secret exists
 	value, err := b.opts.SecretsManagerGetSecretValue(ctx, region, &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(name),
 	})
 	if isNotFoundError(err) {
+		// the secret doesn't exist. create it.
+		data, err := json.Marshal(injected)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal the secret value: %w", err)
+		}
 		return []backends.Plan{
 			&PlanCreate{
 				backend: b,
 				account: account,
 				region:  region,
 				name:    name,
-				secret:  `{"foo":"bar"}`,
+				secret:  string(data),
 			},
 		}, nil
 	}
@@ -81,6 +95,42 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 			secret:  `{"foo":"bar"}`,
 		},
 	}, nil
+}
+
+func (b *Backend) inject(ctx context.Context, template any) (any, error) {
+	switch tmpl := template.(type) {
+	case string:
+		if strings.HasPrefix(tmpl, "{{") && strings.HasSuffix(tmpl, "}}") {
+			secret, err := b.opts.ReadOnePassword(ctx, tmpl[2:len(tmpl)-2])
+			if err != nil {
+				return nil, err
+			}
+			return string(secret), nil
+		}
+		return tmpl, nil
+	case []any:
+		ret := make([]any, 0, len(tmpl))
+		for _, v := range tmpl {
+			injected, err := b.inject(ctx, v)
+			if err != nil {
+				return nil, err
+			}
+			ret = append(ret, injected)
+		}
+		return ret, nil
+	case map[string]any:
+		ret := make(map[string]any, len(tmpl))
+		for k, v := range tmpl {
+			injected, err := b.inject(ctx, v)
+			if err != nil {
+				return nil, err
+			}
+			ret[k] = injected
+		}
+		return ret, nil
+	default:
+		return tmpl, nil
+	}
 }
 
 var _ backends.Plan = (*PlanCreate)(nil)

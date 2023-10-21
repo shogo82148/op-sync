@@ -8,6 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/shogo82148/op-sync/internal/services/mock"
 )
 
@@ -15,6 +17,7 @@ func TestPlan(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var got *secretsmanager.CreateSecretInput
 	b := New(&Options{
 		OnePasswordReader: mock.OnePasswordReader(func(ctx context.Context, uri string) ([]byte, error) {
 			return []byte("secret"), nil
@@ -28,6 +31,7 @@ func TestPlan(t *testing.T) {
 			return nil, &types.ResourceNotFoundException{}
 		}),
 		SecretsManagerSecretCreator: mock.SecretsManagerSecretCreator(func(ctx context.Context, region string, in *secretsmanager.CreateSecretInput) (*secretsmanager.CreateSecretOutput, error) {
+			got = in
 			return &secretsmanager.CreateSecretOutput{}, nil
 		}),
 	})
@@ -36,8 +40,10 @@ func TestPlan(t *testing.T) {
 	plans, err := b.Plan(ctx, map[string]any{
 		"account": "123456789012",
 		"region":  "ap-northeast-1",
-		"name":    "/path/to/secret",
-		"source":  "op://vault/item/field",
+		"name":    "secret",
+		"template": map[string]any{
+			"password": "{{ op://vault/item/field }}",
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -51,5 +57,15 @@ func TestPlan(t *testing.T) {
 	// apply the plan
 	if err := plans[0].Apply(ctx); err != nil {
 		t.Fatal(err)
+	}
+
+	// verify the result
+	want := &secretsmanager.CreateSecretInput{
+		Name:         aws.String("secret"),
+		SecretString: aws.String(`{"password":"secret"}`),
+	}
+	opts := cmpopts.IgnoreUnexported(secretsmanager.CreateSecretInput{})
+	if diff := cmp.Diff(want, got, opts); diff != "" {
+		t.Errorf("unexpected result (-want +got):\n%s", diff)
 	}
 }
