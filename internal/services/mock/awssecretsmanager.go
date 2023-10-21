@@ -23,10 +23,10 @@ func (f SecretsManagerSecretGetter) SecretsManagerGetSecretValue(ctx context.Con
 	return f(ctx, region, in)
 }
 
-var _ services.SecretsManagerSecretPutter = SecretsManagerSecretPutter(nil)
+var _ services.SecretsManagerSecretUpdater = SecretsManagerSecretUpdater(nil)
 
-type SecretsManagerSecretPutter func(ctx context.Context, region string, in *secretsmanager.PutSecretValueInput) (*secretsmanager.PutSecretValueOutput, error)
+type SecretsManagerSecretUpdater func(ctx context.Context, region string, in *secretsmanager.UpdateSecretInput) (*secretsmanager.UpdateSecretOutput, error)
 
-func (f SecretsManagerSecretPutter) SecretsManagerPutSecretValue(ctx context.Context, region string, in *secretsmanager.PutSecretValueInput) (*secretsmanager.PutSecretValueOutput, error) {
+func (f SecretsManagerSecretUpdater) SecretsManagerUpdateSecret(ctx context.Context, region string, in *secretsmanager.UpdateSecretInput) (*secretsmanager.UpdateSecretOutput, error) {
 	return f(ctx, region, in)
 }

@@ -30,7 +30,7 @@ type Options struct {
 	services.STSCallerIdentityGetter
 	services.SecretsManagerSecretCreator
 	services.SecretsManagerSecretGetter
-	services.SecretsManagerSecretPutter
+	services.SecretsManagerSecretUpdater
 }
 
 func New(opts *Options) *Backend {
@@ -111,10 +111,11 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	}
 	return []backends.Plan{
 		&PlanUpdate{
-			backend: b,
-			region:  region,
-			arn:     aws.ToString(value.ARN),
-			secret:  string(data),
+			backend:     b,
+			region:      region,
+			arn:         aws.ToString(value.ARN),
+			secret:      string(data),
+			description: description,
 		},
 	}, nil
 }
@@ -183,10 +184,11 @@ func (p *PlanCreate) Apply(ctx context.Context) error {
 var _ backends.Plan = (*PlanUpdate)(nil)
 
 type PlanUpdate struct {
-	backend *Backend
-	region  string
-	arn     string
-	secret  string
+	backend     *Backend
+	region      string
+	arn         string
+	secret      string
+	description string
 }
 
 func (p *PlanUpdate) Preview() string {
@@ -194,9 +196,10 @@ func (p *PlanUpdate) Preview() string {
 }
 
 func (p *PlanUpdate) Apply(ctx context.Context) error {
-	_, err := p.backend.opts.SecretsManagerPutSecretValue(ctx, p.region, &secretsmanager.PutSecretValueInput{
+	_, err := p.backend.opts.SecretsManagerUpdateSecret(ctx, p.region, &secretsmanager.UpdateSecretInput{
 		SecretId:     aws.String(p.arn),
 		SecretString: aws.String(p.secret),
+		Description:  aws.String(p.description),
 	})
 	return err
 }

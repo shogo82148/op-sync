@@ -67,15 +67,15 @@ func (s *Service) SecretsManagerGetSecretValue(ctx context.Context, region strin
 	return svc.GetSecretValue(ctx, in)
 }
 
-var _ services.SecretsManagerSecretPutter = (*Service)(nil)
+var _ services.SecretsManagerSecretUpdater = (*Service)(nil)
 
-// SecretsManagerPutSecretValue creates a new version with a new encrypted secret value and attaches it to the secret.
-func (s *Service) SecretsManagerPutSecretValue(ctx context.Context, region string, in *secretsmanager.PutSecretValueInput) (*secretsmanager.PutSecretValueOutput, error) {
+// SecretsManagerUpdateSecret updates the contents of the encrypted fields SecretString or SecretBinary from the specified version of a secret.
+func (s *Service) SecretsManagerUpdateSecret(ctx context.Context, region string, in *secretsmanager.UpdateSecretInput) (*secretsmanager.UpdateSecretOutput, error) {
 	svc, err := s.getClient(ctx, region)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "put secrets manager secret", slog.String("name", aws.ToString(in.SecretId)))
-	return svc.PutSecretValue(ctx, in)
+	slog.InfoContext(ctx, "update secrets manager secret", slog.String("name", aws.ToString(in.SecretId)))
+	return svc.UpdateSecret(ctx, in)
 }

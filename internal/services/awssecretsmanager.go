@@ -14,6 +14,6 @@ type SecretsManagerSecretGetter interface {
 	SecretsManagerGetSecretValue(ctx context.Context, region string, in *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error)
 }
 
-type SecretsManagerSecretPutter interface {
-	SecretsManagerPutSecretValue(ctx context.Context, region string, in *secretsmanager.PutSecretValueInput) (*secretsmanager.PutSecretValueOutput, error)
+type SecretsManagerSecretUpdater interface {
+	SecretsManagerUpdateSecret(ctx context.Context, region string, in *secretsmanager.UpdateSecretInput) (*secretsmanager.UpdateSecretOutput, error)
 }

@@ -78,7 +78,7 @@ func TestPlan_Update(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var got *secretsmanager.PutSecretValueInput
+	var got *secretsmanager.UpdateSecretInput
 	b := New(&Options{
 		OnePasswordReader: mock.OnePasswordReader(func(ctx context.Context, uri string) ([]byte, error) {
 			return []byte("secret"), nil
@@ -94,9 +94,9 @@ func TestPlan_Update(t *testing.T) {
 				SecretString: aws.String(`{"password":"old-secret"}`),
 			}, nil
 		}),
-		SecretsManagerSecretPutter: mock.SecretsManagerSecretPutter(func(ctx context.Context, region string, in *secretsmanager.PutSecretValueInput) (*secretsmanager.PutSecretValueOutput, error) {
+		SecretsManagerSecretUpdater: mock.SecretsManagerSecretUpdater(func(ctx context.Context, region string, in *secretsmanager.UpdateSecretInput) (*secretsmanager.UpdateSecretOutput, error) {
 			got = in
-			return &secretsmanager.PutSecretValueOutput{}, nil
+			return &secretsmanager.UpdateSecretOutput{}, nil
 		}),
 	})
 
@@ -124,11 +124,15 @@ func TestPlan_Update(t *testing.T) {
 	}
 
 	// verify the result
-	want := &secretsmanager.PutSecretValueInput{
+	want := &secretsmanager.UpdateSecretInput{
 		SecretId:     aws.String("arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:secret-abcd"),
 		SecretString: aws.String(`{"password":"secret"}`),
+		Description: aws.String(`managed by op-sync:
+{
+  "password": "{{ op://vault/item/field }}"
+}`),
 	}
-	opts := cmpopts.IgnoreUnexported(secretsmanager.PutSecretValueInput{})
+	opts := cmpopts.IgnoreUnexported(secretsmanager.UpdateSecretInput{})
 	if diff := cmp.Diff(want, got, opts); diff != "" {
 		t.Errorf("unexpected result (-want +got):\n%s", diff)
 	}
