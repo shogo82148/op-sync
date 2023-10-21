@@ -71,7 +71,7 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 
 				SecretsManagerSecretCreator: cfg.AWSSecretsManager,
 				SecretsManagerSecretGetter:  cfg.AWSSecretsManager,
-				SecretsManagerSecretPutter:  cfg.AWSSecretsManager,
+				SecretsManagerSecretUpdater: cfg.AWSSecretsManager,
 			}),
 		},
 	}
