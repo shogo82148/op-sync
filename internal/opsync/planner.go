@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/shogo82148/op-sync/internal/backends"
+	"github.com/shogo82148/op-sync/internal/backends/awsssm"
 	"github.com/shogo82148/op-sync/internal/backends/github"
 	"github.com/shogo82148/op-sync/internal/backends/template"
 	"github.com/shogo82148/op-sync/internal/maputils"
@@ -47,6 +48,9 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 				GitHubOrgSecretCreator:          cfg.GitHub,
 				GitHubOrgPublicKeyGetter:        cfg.GitHub,
 				GitHubReposIDForOrgSecretLister: cfg.GitHub,
+			}),
+			"aws-ssm": awsssm.New(&awsssm.Options{
+				OnePasswordReader: cfg.OnePassword,
 			}),
 		},
 	}
