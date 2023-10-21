@@ -61,6 +61,6 @@ func (s *Service) SSMPutParameter(ctx context.Context, region string, in *ssm.Pu
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "put ssm parameter", slog.String("name", aws.ToString(in.Name)))
+	slog.InfoContext(ctx, "put ssm parameter", slog.String("name", aws.ToString(in.Name)))
 	return svc.PutParameter(ctx, in)
 }
