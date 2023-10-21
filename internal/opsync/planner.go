@@ -10,7 +10,8 @@ import (
 	"github.com/shogo82148/op-sync/internal/backends/github"
 	"github.com/shogo82148/op-sync/internal/backends/template"
 	"github.com/shogo82148/op-sync/internal/maputils"
-	"github.com/shogo82148/op-sync/internal/services"
+	"github.com/shogo82148/op-sync/internal/services/gh"
+	"github.com/shogo82148/op-sync/internal/services/op"
 )
 
 type Planner struct {
@@ -19,18 +20,9 @@ type Planner struct {
 }
 
 type PlannerOptions struct {
-	Config *Config
-	services.WhoAmIer
-	services.Injector
-	services.OnePasswordItemGetter
-	services.OnePasswordReader
-	services.GitHubRepoGetter
-	services.GitHubRepoSecretGetter
-	services.GitHubRepoSecretCreator
-	services.GitHubRepoPublicKeyGetter
-	services.GitHubEnvSecretGetter
-	services.GitHubEnvSecretCreator
-	services.GitHubEnvPublicKeyGetter
+	Config      *Config
+	OnePassword *op.Service
+	GitHub      *gh.Service
 }
 
 func NewPlanner(cfg *PlannerOptions) *Planner {
@@ -38,18 +30,23 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 		cfg: cfg,
 		backends: map[string]backends.Backend{
 			"template": template.New(&template.Options{
-				Injector: cfg.Injector,
+				Injector: cfg.OnePassword,
 			}),
 			"github": github.New(&github.Options{
-				OnePasswordItemGetter:     cfg.OnePasswordItemGetter,
-				OnePasswordReader:         cfg.OnePasswordReader,
-				GitHubRepoGetter:          cfg.GitHubRepoGetter,
-				GitHubRepoSecretGetter:    cfg.GitHubRepoSecretGetter,
-				GitHubRepoSecretCreator:   cfg.GitHubRepoSecretCreator,
-				GitHubRepoPublicKeyGetter: cfg.GitHubRepoPublicKeyGetter,
-				GitHubEnvSecretGetter:     cfg.GitHubEnvSecretGetter,
-				GitHubEnvSecretCreator:    cfg.GitHubEnvSecretCreator,
-				GitHubEnvPublicKeyGetter:  cfg.GitHubEnvPublicKeyGetter,
+				OnePasswordItemGetter: cfg.OnePassword,
+				OnePasswordReader:     cfg.OnePassword,
+
+				GitHubRepoGetter:                cfg.GitHub,
+				GitHubRepoSecretGetter:          cfg.GitHub,
+				GitHubRepoSecretCreator:         cfg.GitHub,
+				GitHubRepoPublicKeyGetter:       cfg.GitHub,
+				GitHubEnvSecretGetter:           cfg.GitHub,
+				GitHubEnvSecretCreator:          cfg.GitHub,
+				GitHubEnvPublicKeyGetter:        cfg.GitHub,
+				GitHubOrgSecretGetter:           cfg.GitHub,
+				GitHubOrgSecretCreator:          cfg.GitHub,
+				GitHubOrgPublicKeyGetter:        cfg.GitHub,
+				GitHubReposIDForOrgSecretLister: cfg.GitHub,
 			}),
 		},
 	}
@@ -57,7 +54,7 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 
 func (p *Planner) Plan(ctx context.Context) ([]backends.Plan, error) {
 	// check 1password cli is available.
-	userInfo, err := p.cfg.WhoAmI(ctx)
+	userInfo, err := p.cfg.OnePassword.WhoAmI(ctx)
 	if err != nil {
 		return nil, err
 	}

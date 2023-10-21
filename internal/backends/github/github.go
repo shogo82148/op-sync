@@ -35,6 +35,7 @@ type Options struct {
 	services.GitHubOrgSecretGetter
 	services.GitHubOrgSecretCreator
 	services.GitHubOrgPublicKeyGetter
+	services.GitHubReposIDForOrgSecretLister
 }
 
 func New(opts *Options) *Backend {
@@ -46,6 +47,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	organization, hasOrganization := maputils.Get[string](c, params, "organization")
 	repository, hasRepository := maputils.Get[string](c, params, "repository")
 	environment, hasEnvironment := maputils.Get[string](c, params, "environment")
+	application, hasApplication := maputils.Get[string](c, params, "application")
 	name := maputils.Must[string](c, params, "name")
 	source := maputils.Must[string](c, params, "source")
 	if err := c.Err(); err != nil {
@@ -55,9 +57,27 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	if hasOrganization && hasRepository {
 		return nil, errors.New("github: both organization and repository are specified")
 	}
+	if hasEnvironment && hasApplication {
+		return nil, errors.New("github: both environment and application are specified")
+	}
+
+	var app services.GitHubApplication
+	switch application {
+	case "actions":
+		app = services.GitHubApplicationActions
+	case "codespaces":
+		app = services.GitHubApplicationCodespaces
+	case "dependabot":
+		app = services.GitHubApplicationDependabot
+	default:
+		if hasApplication {
+			return nil, fmt.Errorf("github: unknown application %q", application)
+		}
+		app = services.GitHubApplicationActions
+	}
 
 	if hasOrganization {
-		return b.planOrgSecret(ctx, organization, name, source)
+		return b.planOrgSecret(ctx, app, organization, name, source)
 	}
 
 	if hasRepository {
@@ -68,7 +88,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		if hasEnvironment {
 			return b.planEnvSecret(ctx, owner, repo, environment, name, source)
 		} else {
-			return b.planRepoSecret(ctx, owner, repo, name, source)
+			return b.planRepoSecret(ctx, app, owner, repo, name, source)
 		}
 	}
 
@@ -80,8 +100,8 @@ func isNotFound(err error) bool {
 	return errors.As(err, &ghErr) && ghErr.Response.StatusCode == http.StatusNotFound
 }
 
-func (b *Backend) planRepoSecret(ctx context.Context, owner, repo, name, source string) ([]backends.Plan, error) {
-	secret, err := b.opts.GetGitHubRepoSecret(ctx, owner, repo, name)
+func (b *Backend) planRepoSecret(ctx context.Context, app services.GitHubApplication, owner, repo, name, source string) ([]backends.Plan, error) {
+	secret, err := b.opts.GetGitHubRepoSecret(ctx, app, owner, repo, name)
 	if isNotFound(err) {
 		// the secret is not found.
 		// we should create it.
@@ -210,12 +230,12 @@ func (b *Backend) newPlanEnvSecret(ctx context.Context, ghRepo *github.Repositor
 	}, nil
 }
 
-func (b *Backend) planOrgSecret(ctx context.Context, organization, name, source string) ([]backends.Plan, error) {
-	secret, err := b.opts.GetGitHubOrgSecret(ctx, organization, name)
+func (b *Backend) planOrgSecret(ctx context.Context, app services.GitHubApplication, org, name, source string) ([]backends.Plan, error) {
+	secret, err := b.opts.GetGitHubOrgSecret(ctx, app, org, name)
 	if isNotFound(err) {
 		// the secret is not found.
 		// we should create it.
-		return b.newPlanOrgSecret(ctx, organization, name, source, false)
+		return b.newPlanOrgSecret(ctx, app, org, name, source, false, "selected", []int64{})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub org secret: %w", err)
@@ -237,10 +257,17 @@ func (b *Backend) planOrgSecret(ctx context.Context, organization, name, source 
 		return []backends.Plan{}, nil
 	}
 
-	return b.newPlanOrgSecret(ctx, organization, name, source, true)
+	var reposID []int64
+	if secret.Visibility == "selected" {
+		reposID, err = b.opts.ListGitHubReposIDForOrgSecret(ctx, app, org, name)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return b.newPlanOrgSecret(ctx, app, org, name, source, true, secret.Visibility, reposID)
 }
 
-func (b *Backend) newPlanOrgSecret(ctx context.Context, organization, name, source string, overwrite bool) ([]backends.Plan, error) {
+func (b *Backend) newPlanOrgSecret(ctx context.Context, app services.GitHubApplication, organization, name, source string, overwrite bool, visibility string, reposID []int64) ([]backends.Plan, error) {
 	// get the public key
 	key, err := b.opts.GetGitHubOrgPublicKey(ctx, organization)
 	if err != nil {
@@ -262,8 +289,11 @@ func (b *Backend) newPlanOrgSecret(ctx context.Context, organization, name, sour
 	return []backends.Plan{
 		&PlanOrgSecret{
 			backend:         b,
-			organization:    organization,
+			app:             app,
+			org:             organization,
 			name:            name,
+			visibility:      visibility,
+			reposID:         reposID,
 			keyID:           key.GetKeyID(),
 			encryptedSecret: encryptedSecret,
 			overwrite:       overwrite,
@@ -295,6 +325,7 @@ var _ backends.Plan = (*PlanRepoSecret)(nil)
 
 type PlanRepoSecret struct {
 	backend         *Backend
+	app             services.GitHubApplication
 	owner           string
 	repo            string
 	name            string
@@ -316,7 +347,7 @@ func (p *PlanRepoSecret) Apply(ctx context.Context) error {
 		KeyID:          p.keyID,
 		EncryptedValue: p.encryptedSecret,
 	}
-	return p.backend.opts.CreateGitHubRepoSecret(ctx, p.owner, p.repo, eSecret)
+	return p.backend.opts.CreateGitHubRepoSecret(ctx, p.app, p.owner, p.repo, eSecret)
 }
 
 var _ backends.Plan = (*PlanEnvSecret)(nil)
@@ -353,25 +384,30 @@ var _ backends.Plan = (*PlanOrgSecret)(nil)
 
 type PlanOrgSecret struct {
 	backend         *Backend
-	organization    string
+	app             services.GitHubApplication
+	org             string
 	name            string
 	keyID           string
 	encryptedSecret string
+	visibility      string
+	reposID         []int64
 	overwrite       bool
 }
 
 func (p *PlanOrgSecret) Preview() string {
 	if p.overwrite {
-		return fmt.Sprintf("secret %q in organization %s will be updated", p.name, p.organization)
+		return fmt.Sprintf("secret %q in organization %s will be updated", p.name, p.org)
 	}
-	return fmt.Sprintf("secret %q in organization %s will be created", p.name, p.organization)
+	return fmt.Sprintf("secret %q in organization %s will be created", p.name, p.org)
 }
 
 func (p *PlanOrgSecret) Apply(ctx context.Context) error {
 	eSecret := &github.EncryptedSecret{
-		Name:           p.name,
-		KeyID:          p.keyID,
-		EncryptedValue: p.encryptedSecret,
+		Name:                  p.name,
+		KeyID:                 p.keyID,
+		EncryptedValue:        p.encryptedSecret,
+		Visibility:            p.visibility,
+		SelectedRepositoryIDs: p.reposID,
 	}
-	return p.backend.opts.CreateGitHubOrgSecret(ctx, p.organization, eSecret)
+	return p.backend.opts.CreateGitHubOrgSecret(ctx, p.app, p.org, eSecret)
 }

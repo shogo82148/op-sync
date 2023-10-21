@@ -81,21 +81,10 @@ func (app *App) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to parse %q: %w", app.Config, err)
 	}
 
-	op := op.NewService()
-	gh := gh.NewService()
 	planner := NewPlanner(&PlannerOptions{
-		Config:                    cfg,
-		WhoAmIer:                  op,
-		Injector:                  op,
-		OnePasswordItemGetter:     op,
-		OnePasswordReader:         op,
-		GitHubRepoGetter:          gh,
-		GitHubRepoSecretGetter:    gh,
-		GitHubRepoSecretCreator:   gh,
-		GitHubRepoPublicKeyGetter: gh,
-		GitHubEnvSecretGetter:     gh,
-		GitHubEnvSecretCreator:    gh,
-		GitHubEnvPublicKeyGetter:  gh,
+		Config:      cfg,
+		OnePassword: op.NewService(),
+		GitHub:      gh.NewService(),
 	})
 	plans, err := planner.Plan(ctx)
 	if err != nil {
