@@ -61,7 +61,11 @@ func TestPlan(t *testing.T) {
 
 	// verify the result
 	want := &secretsmanager.CreateSecretInput{
-		Name:         aws.String("secret"),
+		Name: aws.String("secret"),
+		Description: aws.String(`managed by op-sync:
+{
+  "password": "{{ op://vault/item/field }}"
+}`),
 		SecretString: aws.String(`{"password":"secret"}`),
 	}
 	opts := cmpopts.IgnoreUnexported(secretsmanager.CreateSecretInput{})

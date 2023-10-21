@@ -43,8 +43,16 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	region := maputils.Must[string](c, params, "region")
 	name := maputils.Must[string](c, params, "name")
 	template := maputils.Must[map[string]any](c, params, "template")
+	description, hasDescription := maputils.Get[string](c, params, "description")
 	if err := c.Err(); err != nil {
 		return nil, fmt.Errorf("awsssm: validation failed: %w", err)
+	}
+	if !hasDescription {
+		data, err := json.MarshalIndent(template, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal the template: %w", err)
+		}
+		description = fmt.Sprintf("managed by op-sync:\n%s", string(data))
 	}
 
 	id, err := b.opts.STSGetCallerIdentity(ctx)
@@ -73,11 +81,12 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		}
 		return []backends.Plan{
 			&PlanCreate{
-				backend: b,
-				account: account,
-				region:  region,
-				name:    name,
-				secret:  string(data),
+				backend:     b,
+				account:     account,
+				region:      region,
+				name:        name,
+				description: description,
+				secret:      string(data),
 			},
 		}, nil
 	}
@@ -150,11 +159,12 @@ func (b *Backend) inject(ctx context.Context, template any) (any, error) {
 var _ backends.Plan = (*PlanCreate)(nil)
 
 type PlanCreate struct {
-	backend *Backend
-	account string
-	region  string
-	name    string
-	secret  string
+	backend     *Backend
+	account     string
+	region      string
+	name        string
+	description string
+	secret      string
 }
 
 func (p *PlanCreate) Preview() string {
@@ -164,6 +174,7 @@ func (p *PlanCreate) Preview() string {
 func (p *PlanCreate) Apply(ctx context.Context) error {
 	_, err := p.backend.opts.SecretsManagerCreateSecret(ctx, p.region, &secretsmanager.CreateSecretInput{
 		Name:         aws.String(p.name),
+		Description:  aws.String(p.description),
 		SecretString: aws.String(p.secret),
 	})
 	return err
