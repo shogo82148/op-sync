@@ -59,10 +59,11 @@ func TestPlan(t *testing.T) {
 
 	// verify the result
 	want := &ssm.PutParameterInput{
-		Name:      aws.String("/path/to/secret"),
-		Type:      types.ParameterTypeSecureString,
-		Value:     aws.String("secret"),
-		Overwrite: aws.Bool(false),
+		Name:        aws.String("/path/to/secret"),
+		Description: aws.String("managed by op-sync: op://vault/item/field"),
+		Type:        types.ParameterTypeSecureString,
+		Value:       aws.String("secret"),
+		Overwrite:   aws.Bool(false),
 	}
 	opts := cmpopts.IgnoreUnexported(ssm.PutParameterInput{})
 	if diff := cmp.Diff(want, result, opts); diff != "" {
@@ -120,10 +121,11 @@ func TestPlan_Overwrite(t *testing.T) {
 
 	// verify the result
 	want := &ssm.PutParameterInput{
-		Name:      aws.String("/path/to/secret"),
-		Type:      types.ParameterTypeSecureString,
-		Value:     aws.String("secret"),
-		Overwrite: aws.Bool(true),
+		Name:        aws.String("/path/to/secret"),
+		Description: aws.String("managed by op-sync: op://vault/item/field"),
+		Type:        types.ParameterTypeSecureString,
+		Value:       aws.String("secret"),
+		Overwrite:   aws.Bool(true),
 	}
 	opts := cmpopts.IgnoreUnexported(ssm.PutParameterInput{})
 	if diff := cmp.Diff(want, result, opts); diff != "" {
