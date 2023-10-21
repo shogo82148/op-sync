@@ -11,6 +11,7 @@ import (
 	"github.com/shogo82148/op-sync/internal/backends/github"
 	"github.com/shogo82148/op-sync/internal/backends/template"
 	"github.com/shogo82148/op-sync/internal/maputils"
+	"github.com/shogo82148/op-sync/internal/services/awssts"
 	"github.com/shogo82148/op-sync/internal/services/gh"
 	"github.com/shogo82148/op-sync/internal/services/op"
 )
@@ -24,6 +25,7 @@ type PlannerOptions struct {
 	Config      *Config
 	OnePassword *op.Service
 	GitHub      *gh.Service
+	AWSSTS      *awssts.Service
 }
 
 func NewPlanner(cfg *PlannerOptions) *Planner {
@@ -51,6 +53,8 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 			}),
 			"aws-ssm": awsssm.New(&awsssm.Options{
 				OnePasswordReader: cfg.OnePassword,
+
+				STSCallerIdentityGetter: cfg.AWSSTS,
 			}),
 		},
 	}

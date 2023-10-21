@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/shogo82148/op-sync/internal/backends"
 	"github.com/shogo82148/op-sync/internal/maputils"
 	"github.com/shogo82148/op-sync/internal/services"
@@ -28,6 +27,7 @@ type Backend struct {
 
 type Options struct {
 	services.OnePasswordReader
+	services.STSCallerIdentityGetter
 }
 
 func New(opts *Options) *Backend {
@@ -49,8 +49,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return nil, fmt.Errorf("failed to load aws config: %w", err)
 	}
 
-	s := sts.NewFromConfig(cfg)
-	id, err := s.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	id, err := b.opts.STSGetCallerIdentity(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get caller identity: %w", err)
 	}
