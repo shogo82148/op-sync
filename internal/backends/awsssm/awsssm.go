@@ -41,8 +41,12 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	region := maputils.Must[string](c, params, "region")
 	name := maputils.Must[string](c, params, "name")
 	source := maputils.Must[string](c, params, "source")
+	description, hasDescription := maputils.Get[string](c, params, "description")
 	if err := c.Err(); err != nil {
 		return nil, fmt.Errorf("awsssm: validation failed: %w", err)
+	}
+	if !hasDescription {
+		description = fmt.Sprintf("managed by op-sync: %s", source)
 	}
 
 	id, err := b.opts.STSGetCallerIdentity(ctx)
@@ -65,12 +69,13 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	if isNotFoundError(err) {
 		return []backends.Plan{
 			&Plan{
-				backend:   b,
-				account:   account,
-				region:    region,
-				name:      name,
-				secret:    secret,
-				overwrite: false,
+				backend:     b,
+				account:     account,
+				region:      region,
+				name:        name,
+				description: description,
+				secret:      secret,
+				overwrite:   false,
 			},
 		}, nil
 	}
@@ -84,12 +89,13 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 
 	return []backends.Plan{
 		&Plan{
-			backend:   b,
-			account:   account,
-			region:    region,
-			name:      name,
-			secret:    secret,
-			overwrite: true,
+			backend:     b,
+			account:     account,
+			region:      region,
+			name:        name,
+			description: description,
+			secret:      secret,
+			overwrite:   true,
 		},
 	}, nil
 }
@@ -97,12 +103,13 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 var _ backends.Plan = (*Plan)(nil)
 
 type Plan struct {
-	backend   *Backend
-	account   string
-	region    string
-	name      string
-	secret    []byte
-	overwrite bool
+	backend     *Backend
+	account     string
+	region      string
+	name        string
+	description string
+	secret      []byte
+	overwrite   bool
 }
 
 func (p *Plan) Preview() string {
@@ -114,10 +121,11 @@ func (p *Plan) Preview() string {
 
 func (p *Plan) Apply(ctx context.Context) error {
 	_, err := p.backend.opts.SSMPutParameter(ctx, p.region, &ssm.PutParameterInput{
-		Name:      aws.String(p.name),
-		Type:      types.ParameterTypeSecureString,
-		Value:     aws.String(string(p.secret)),
-		Overwrite: aws.Bool(p.overwrite),
+		Name:        aws.String(p.name),
+		Type:        types.ParameterTypeSecureString,
+		Value:       aws.String(string(p.secret)),
+		Description: aws.String(p.description),
+		Overwrite:   aws.Bool(p.overwrite),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to put parameter to parameter store: %w", err)
