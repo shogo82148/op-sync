@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/shogo82148/op-sync/internal/backends"
@@ -29,6 +28,7 @@ type Options struct {
 	services.OnePasswordReader
 	services.STSCallerIdentityGetter
 	services.SSMParameterGetter
+	services.SSMParameterPutter
 }
 
 func New(opts *Options) *Backend {
@@ -113,16 +113,11 @@ func (p *Plan) Preview() string {
 }
 
 func (p *Plan) Apply(ctx context.Context) error {
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(p.region))
-	if err != nil {
-		return fmt.Errorf("failed to load aws config: %w", err)
-	}
-
-	svc := ssm.NewFromConfig(cfg)
-	_, err = svc.PutParameter(ctx, &ssm.PutParameterInput{
-		Name:  aws.String(p.name),
-		Type:  types.ParameterTypeSecureString,
-		Value: aws.String(string(p.secret)),
+	_, err := p.backend.opts.SSMPutParameter(ctx, p.region, &ssm.PutParameterInput{
+		Name:      aws.String(p.name),
+		Type:      types.ParameterTypeSecureString,
+		Value:     aws.String(string(p.secret)),
+		Overwrite: aws.Bool(p.overwrite),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to put parameter to parameter store: %w", err)

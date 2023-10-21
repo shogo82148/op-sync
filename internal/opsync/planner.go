@@ -59,6 +59,7 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 				STSCallerIdentityGetter: cfg.AWSSTS,
 
 				SSMParameterGetter: cfg.AWSSSM,
+				SSMParameterPutter: cfg.AWSSSM,
 			}),
 		},
 	}

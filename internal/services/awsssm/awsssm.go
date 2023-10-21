@@ -52,3 +52,15 @@ func (s *Service) SSMGetParameter(ctx context.Context, region string, in *ssm.Ge
 	slog.DebugContext(ctx, "get ssm parameter", slog.String("name", aws.ToString(in.Name)))
 	return svc.GetParameter(ctx, in)
 }
+
+var _ services.SSMParameterPutter = (*Service)(nil)
+
+func (s *Service) SSMPutParameter(ctx context.Context, region string, in *ssm.PutParameterInput) (*ssm.PutParameterOutput, error) {
+	svc, err := s.getClient(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "put ssm parameter", slog.String("name", aws.ToString(in.Name)))
+	return svc.PutParameter(ctx, in)
+}

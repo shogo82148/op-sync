@@ -9,3 +9,7 @@ import (
 type SSMParameterGetter interface {
 	SSMGetParameter(ctx context.Context, region string, in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error)
 }
+
+type SSMParameterPutter interface {
+	SSMPutParameter(ctx context.Context, region string, in *ssm.PutParameterInput) (*ssm.PutParameterOutput, error)
+}
