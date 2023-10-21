@@ -28,7 +28,7 @@ func (s *Service) getClient(ctx context.Context, region string) (*ssm.Client, er
 	if s.svc == nil {
 		s.svc = make(map[string]*ssm.Client)
 	}
-	if svc, ok := s.svc[region]; !ok {
+	if svc, ok := s.svc[region]; ok {
 		return svc, nil
 	}
 
