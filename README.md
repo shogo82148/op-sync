@@ -1,8 +1,10 @@
 # op-sync
 
-sync secrets from 1password.
+sync secrets from 1Password.
 
 ## Synopsis
+
+`op-sync` requires [1Password CLI](https://developer.1password.com/docs/cli).
 
 Here is a password in the item "Test" in the vault "Private".
 
@@ -44,6 +46,8 @@ However `op-sync` can work more services.
 ## Works with Other Services
 
 ### GitHub secrets
+
+The following examples require installing [GitHub CLI](https://cli.github.com/).
 
 GitHub Actions' secrets:
 
