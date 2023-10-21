@@ -7,10 +7,12 @@ import (
 	"slices"
 
 	"github.com/shogo82148/op-sync/internal/backends"
+	"github.com/shogo82148/op-sync/internal/backends/awssecretsmanager"
 	"github.com/shogo82148/op-sync/internal/backends/awsssm"
 	"github.com/shogo82148/op-sync/internal/backends/github"
 	"github.com/shogo82148/op-sync/internal/backends/template"
 	"github.com/shogo82148/op-sync/internal/maputils"
+	svcsecretsmanager "github.com/shogo82148/op-sync/internal/services/awssecretsmanager"
 	svcssm "github.com/shogo82148/op-sync/internal/services/awsssm"
 	"github.com/shogo82148/op-sync/internal/services/awssts"
 	"github.com/shogo82148/op-sync/internal/services/gh"
@@ -23,11 +25,12 @@ type Planner struct {
 }
 
 type PlannerOptions struct {
-	Config      *Config
-	OnePassword *op.Service
-	GitHub      *gh.Service
-	AWSSTS      *awssts.Service
-	AWSSSM      *svcssm.Service
+	Config            *Config
+	OnePassword       *op.Service
+	GitHub            *gh.Service
+	AWSSTS            *awssts.Service
+	AWSSSM            *svcssm.Service
+	AWSSecretsManager *svcsecretsmanager.Service
 }
 
 func NewPlanner(cfg *PlannerOptions) *Planner {
@@ -60,6 +63,15 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 
 				SSMParameterGetter: cfg.AWSSSM,
 				SSMParameterPutter: cfg.AWSSSM,
+			}),
+			"aws-secrets-manager": awssecretsmanager.New(&awssecretsmanager.Options{
+				OnePasswordReader: cfg.OnePassword,
+
+				STSCallerIdentityGetter: cfg.AWSSTS,
+
+				SecretsManagerSecretCreator: cfg.AWSSecretsManager,
+				SecretsManagerSecretGetter:  cfg.AWSSecretsManager,
+				SecretsManagerSecretPutter:  cfg.AWSSecretsManager,
 			}),
 		},
 	}
