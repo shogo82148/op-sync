@@ -50,7 +50,7 @@ func (s *Service) SecretsManagerCreateSecret(ctx context.Context, region string,
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "create secrets manager secret", slog.String("name", aws.ToString(in.Name)))
+	slog.InfoContext(ctx, "create secrets manager secret", slog.String("name", aws.ToString(in.Name)))
 	return svc.CreateSecret(ctx, in)
 }
 
@@ -76,6 +76,6 @@ func (s *Service) SecretsManagerPutSecretValue(ctx context.Context, region strin
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "put secrets manager secret", slog.String("name", aws.ToString(in.SecretId)))
+	slog.InfoContext(ctx, "put secrets manager secret", slog.String("name", aws.ToString(in.SecretId)))
 	return svc.PutSecretValue(ctx, in)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -84,15 +85,27 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return nil, fmt.Errorf("failed to get secret value: %w", err)
 	}
 
-	// TODO: check the secret value is up-to-date
-	_ = value
+	// check the secret value is up-to-date
+	var current any
+	err = json.Unmarshal([]byte(aws.ToString(value.SecretString)), &current)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal secret value: %w", err)
+	}
+	if reflect.DeepEqual(injected, current) {
+		return []backends.Plan{}, nil
+	}
 
+	// update the secret
+	data, err := json.Marshal(injected)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal the secret value: %w", err)
+	}
 	return []backends.Plan{
 		&PlanUpdate{
 			backend: b,
 			region:  region,
 			arn:     aws.ToString(value.ARN),
-			secret:  `{"foo":"bar"}`,
+			secret:  string(data),
 		},
 	}, nil
 }
@@ -101,7 +114,8 @@ func (b *Backend) inject(ctx context.Context, template any) (any, error) {
 	switch tmpl := template.(type) {
 	case string:
 		if strings.HasPrefix(tmpl, "{{") && strings.HasSuffix(tmpl, "}}") {
-			secret, err := b.opts.ReadOnePassword(ctx, tmpl[2:len(tmpl)-2])
+			uri := strings.TrimSpace(tmpl[2 : len(tmpl)-2])
+			secret, err := b.opts.ReadOnePassword(ctx, uri)
 			if err != nil {
 				return nil, err
 			}

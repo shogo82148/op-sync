@@ -241,7 +241,7 @@ func (s *Service) CreateGitHubOrgSecret(ctx context.Context, app services.GitHub
 		return err
 	}
 
-	slog.DebugContext(ctx, "create or update the org secret", slog.String("application", string(app)), slog.String("org", org), slog.String("name", secret.Name))
+	slog.InfoContext(ctx, "create or update the org secret", slog.String("application", string(app)), slog.String("org", org), slog.String("name", secret.Name))
 	switch app {
 	case services.GitHubApplicationActions:
 		_, err = client.Actions.CreateOrUpdateOrgSecret(ctx, org, secret)
