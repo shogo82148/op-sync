@@ -28,6 +28,7 @@ type Backend struct {
 type Options struct {
 	services.OnePasswordReader
 	services.STSCallerIdentityGetter
+	services.SSMParameterGetter
 }
 
 func New(opts *Options) *Backend {
@@ -44,11 +45,6 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return nil, fmt.Errorf("awsssm: validation failed: %w", err)
 	}
 
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
-	if err != nil {
-		return nil, fmt.Errorf("failed to load aws config: %w", err)
-	}
-
 	id, err := b.opts.STSGetCallerIdentity(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get caller identity: %w", err)
@@ -62,8 +58,7 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 		return nil, fmt.Errorf("failed to read secret: %w", err)
 	}
 
-	svc := ssm.NewFromConfig(cfg)
-	param, err := svc.GetParameter(ctx, &ssm.GetParameterInput{
+	param, err := b.opts.SSMGetParameter(ctx, region, &ssm.GetParameterInput{
 		Name:           aws.String(name),
 		WithDecryption: aws.Bool(true),
 	})

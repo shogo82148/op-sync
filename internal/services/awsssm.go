@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
-type STSCallerIdentityGetter interface {
-	STSGetCallerIdentity(ctx context.Context) (*sts.GetCallerIdentityOutput, error)
+type SSMParameterGetter interface {
+	SSMGetParameter(ctx context.Context, region string, in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error)
 }
