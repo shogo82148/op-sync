@@ -7,9 +7,12 @@ import (
 	"slices"
 
 	"github.com/shogo82148/op-sync/internal/backends"
+	"github.com/shogo82148/op-sync/internal/backends/awsssm"
 	"github.com/shogo82148/op-sync/internal/backends/github"
 	"github.com/shogo82148/op-sync/internal/backends/template"
 	"github.com/shogo82148/op-sync/internal/maputils"
+	svcssm "github.com/shogo82148/op-sync/internal/services/awsssm"
+	"github.com/shogo82148/op-sync/internal/services/awssts"
 	"github.com/shogo82148/op-sync/internal/services/gh"
 	"github.com/shogo82148/op-sync/internal/services/op"
 )
@@ -23,6 +26,8 @@ type PlannerOptions struct {
 	Config      *Config
 	OnePassword *op.Service
 	GitHub      *gh.Service
+	AWSSTS      *awssts.Service
+	AWSSSM      *svcssm.Service
 }
 
 func NewPlanner(cfg *PlannerOptions) *Planner {
@@ -47,6 +52,14 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 				GitHubOrgSecretCreator:          cfg.GitHub,
 				GitHubOrgPublicKeyGetter:        cfg.GitHub,
 				GitHubReposIDForOrgSecretLister: cfg.GitHub,
+			}),
+			"aws-ssm": awsssm.New(&awsssm.Options{
+				OnePasswordReader: cfg.OnePassword,
+
+				STSCallerIdentityGetter: cfg.AWSSTS,
+
+				SSMParameterGetter: cfg.AWSSSM,
+				SSMParameterPutter: cfg.AWSSSM,
 			}),
 		},
 	}

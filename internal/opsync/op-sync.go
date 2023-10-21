@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"github.com/Songmu/prompter"
+	"github.com/shogo82148/op-sync/internal/services/awsssm"
+	"github.com/shogo82148/op-sync/internal/services/awssts"
 	"github.com/shogo82148/op-sync/internal/services/gh"
 	"github.com/shogo82148/op-sync/internal/services/op"
 )
@@ -85,6 +87,8 @@ func (app *App) Run(ctx context.Context) error {
 		Config:      cfg,
 		OnePassword: op.NewService(),
 		GitHub:      gh.NewService(),
+		AWSSTS:      awssts.New(),
+		AWSSSM:      awsssm.New(),
 	})
 	plans, err := planner.Plan(ctx)
 	if err != nil {
