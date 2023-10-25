@@ -123,7 +123,13 @@ func (s *Service) CreateGitHubRepoSecret(ctx context.Context, app services.GitHu
 		return err
 	}
 
-	slog.DebugContext(ctx, "create or update the repo secret", slog.String("owner", owner), slog.String("repo", repo), slog.String("name", secret.Name))
+	slog.DebugContext(
+		ctx,
+		"create or update the repo secret",
+		slog.String("app", string(app)),
+		slog.String("owner", owner), slog.String("repo", repo),
+		slog.String("name", secret.Name),
+	)
 	switch app {
 	case services.GitHubApplicationActions:
 		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, owner, repo, secret)
@@ -136,6 +142,8 @@ func (s *Service) CreateGitHubRepoSecret(ctx context.Context, app services.GitHu
 		_, err = client.Dependabot.CreateOrUpdateRepoSecret(ctx, owner, repo, dSecret)
 	case services.GitHubApplicationCodespaces:
 		_, err = client.Codespaces.CreateOrUpdateRepoSecret(ctx, owner, repo, secret)
+	default:
+		return fmt.Errorf("unknown GitHub application: %s", app)
 	}
 	return err
 }

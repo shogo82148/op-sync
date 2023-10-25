@@ -105,7 +105,7 @@ func (b *Backend) planRepoSecret(ctx context.Context, app services.GitHubApplica
 	if isNotFound(err) {
 		// the secret is not found.
 		// we should create it.
-		return b.newPlanRepoSecret(ctx, owner, repo, name, source)
+		return b.newPlanRepoSecret(ctx, app, owner, repo, name, source)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub repo secret: %w", err)
@@ -127,10 +127,10 @@ func (b *Backend) planRepoSecret(ctx context.Context, app services.GitHubApplica
 		return []backends.Plan{}, nil
 	}
 
-	return b.newPlanRepoSecret(ctx, owner, repo, name, source)
+	return b.newPlanRepoSecret(ctx, app, owner, repo, name, source)
 }
 
-func (b *Backend) newPlanRepoSecret(ctx context.Context, owner, repo, name, source string) ([]backends.Plan, error) {
+func (b *Backend) newPlanRepoSecret(ctx context.Context, app services.GitHubApplication, owner, repo, name, source string) ([]backends.Plan, error) {
 	// get the public key
 	key, err := b.opts.GetGitHubRepoPublicKey(ctx, owner, repo)
 	if err != nil {
@@ -152,6 +152,7 @@ func (b *Backend) newPlanRepoSecret(ctx context.Context, owner, repo, name, sour
 	return []backends.Plan{
 		&PlanRepoSecret{
 			backend:         b,
+			app:             app,
 			owner:           owner,
 			repo:            repo,
 			name:            name,
