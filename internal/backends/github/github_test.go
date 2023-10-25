@@ -37,6 +37,9 @@ func TestPlan_RepoSecret(t *testing.T) {
 			}
 		}),
 		GitHubRepoSecretCreator: mock.GitHubRepoSecretCreator(func(ctx context.Context, app services.GitHubApplication, owner, repo string, secret *github.EncryptedSecret) error {
+			if app != services.GitHubApplicationActions {
+				t.Errorf("unexpected application: want actions, got %s", app)
+			}
 			if owner != "shogo82148" || repo != "op-sync" {
 				t.Errorf("unexpected repository: want shogo82148/op-sync, got %s/%s", owner, repo)
 			}
@@ -165,6 +168,9 @@ func TestPlan_RepoSecret_for_Dependabot(t *testing.T) {
 			}
 		}),
 		GitHubRepoSecretCreator: mock.GitHubRepoSecretCreator(func(ctx context.Context, app services.GitHubApplication, owner, repo string, secret *github.EncryptedSecret) error {
+			if app != services.GitHubApplicationDependabot {
+				t.Errorf("unexpected application: want actions, got %s", app)
+			}
 			if owner != "shogo82148" || repo != "op-sync" {
 				t.Errorf("unexpected repository: want shogo82148/op-sync, got %s/%s", owner, repo)
 			}
