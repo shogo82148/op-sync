@@ -42,6 +42,9 @@ func TestPlan_NoFile(t *testing.T) {
 	if plan.overwrite {
 		t.Error("overwrite should be false")
 	}
+	if got, want := plan.Preview(), "file \""+tmp+"\" will be created"; got != want {
+		t.Errorf("unexpected preview: want %q, got %q", want, got)
+	}
 
 	// apply the plan
 	if err := plan.Apply(ctx); err != nil {
@@ -124,8 +127,11 @@ func TestPlan_Updated(t *testing.T) {
 	if !ok {
 		t.Fatalf("unexpected type: want *Plan, got %T", plans[0])
 	}
-	if plan.overwrite {
-		t.Error("overwrite should be false")
+	if !plan.overwrite {
+		t.Error("overwrite should be true")
+	}
+	if got, want := plan.Preview(), "file \""+tmp+"\" will be updated"; got != want {
+		t.Errorf("unexpected preview: want %q, got %q", want, got)
 	}
 
 	// apply the plan

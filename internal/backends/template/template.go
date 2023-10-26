@@ -4,7 +4,9 @@ package template
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
 	"github.com/shogo82148/op-sync/internal/backends"
@@ -43,10 +45,11 @@ func (b *Backend) Plan(ctx context.Context, params map[string]any) ([]backends.P
 	var overwrite bool
 	oldData, err := os.ReadFile(output)
 	if err != nil {
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			return nil, err
 		}
 	} else {
+		overwrite = true
 		if bytes.Equal(oldData, newData) {
 			return []backends.Plan{}, nil
 		}
