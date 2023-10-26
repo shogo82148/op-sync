@@ -31,6 +31,9 @@ type App struct {
 	// Force enables force mode.
 	Force bool
 
+	// Type is the type of the secret to sync.
+	Type string
+
 	fset *flag.FlagSet
 }
 
@@ -43,6 +46,7 @@ func New() *App {
 	fset.BoolVar(&app.Help, "help", false, "show help message")
 	fset.BoolVar(&app.Debug, "debug", false, "enable debug log")
 	fset.BoolVar(&app.Force, "force", false, "enable force mode")
+	fset.StringVar(&app.Type, "type", "", "the type of the secret to sync")
 	return app
 }
 
@@ -95,7 +99,9 @@ func (app *App) Run(ctx context.Context) error {
 	})
 
 	var plans []backends.Plan
-	if app.fset.NArg() == 0 {
+	if app.Type != "" {
+		plans, err = planner.PlanWithType(ctx, app.Type)
+	} else if app.fset.NArg() == 0 {
 		plans, err = planner.Plan(ctx)
 	} else {
 		plans, err = planner.PlanWithSecrets(ctx, app.fset.Args())

@@ -105,6 +105,29 @@ func (p *Planner) PlanWithSecrets(ctx context.Context, secrets []string) ([]back
 	return p.plan(ctx, secrets)
 }
 
+// PlanWithType plans the specified type secrets.
+func (p Planner) PlanWithType(ctx context.Context, type_ string) ([]backends.Plan, error) {
+	if _, ok := p.backends[type_]; !ok {
+		return nil, fmt.Errorf("opsync: backend for type %q not found", type_)
+	}
+
+	s := p.cfg.Config.Secrets
+	keys := make([]string, 0, len(s))
+	for key, cfg := range s {
+		c := new(maputils.Context)
+		typ := maputils.Must[string](c, cfg, "type")
+		if err := c.Err(); err != nil {
+			return nil, err
+		}
+		if typ == type_ {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+
+	return p.plan(ctx, keys)
+}
+
 func (p *Planner) plan(ctx context.Context, secrets []string) ([]backends.Plan, error) {
 	// check 1password cli is available.
 	if err := p.checkIsOPAvailable(ctx); err != nil {
