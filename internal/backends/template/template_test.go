@@ -124,8 +124,8 @@ func TestPlan_Updated(t *testing.T) {
 	if !ok {
 		t.Fatalf("unexpected type: want *Plan, got %T", plans[0])
 	}
-	if plan.overwrite {
-		t.Error("overwrite should be false")
+	if !plan.overwrite {
+		t.Error("overwrite should be true")
 	}
 
 	// apply the plan
