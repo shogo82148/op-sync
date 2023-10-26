@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"github.com/google/go-github/v56/github"
 	"github.com/shogo82148/op-sync/internal/services"
@@ -15,7 +17,12 @@ import (
 
 func command(ctx context.Context, name string, args ...string) *exec.Cmd {
 	slog.DebugContext(ctx, "run GitHub cli", slog.String("name", name), slog.Any("args", args))
-	return exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Cancel = func() error {
+		return cmd.Process.Signal(os.Interrupt)
+	}
+	cmd.WaitDelay = 10 * time.Second
+	return cmd
 }
 
 func wrap(err error) error {
