@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/Songmu/prompter"
+	"github.com/shogo82148/op-sync/internal/backends"
 	"github.com/shogo82148/op-sync/internal/services/awssecretsmanager"
 	"github.com/shogo82148/op-sync/internal/services/awsssm"
 	"github.com/shogo82148/op-sync/internal/services/awssts"
@@ -92,7 +93,13 @@ func (app *App) Run(ctx context.Context) error {
 		AWSSSM:            awsssm.New(),
 		AWSSecretsManager: awssecretsmanager.New(),
 	})
-	plans, err := planner.Plan(ctx)
+
+	var plans []backends.Plan
+	if app.fset.NArg() == 0 {
+		plans, err = planner.Plan(ctx)
+	} else {
+		plans, err = planner.PlanWithSecrets(ctx, app.fset.Args())
+	}
 	if err != nil {
 		return err
 	}

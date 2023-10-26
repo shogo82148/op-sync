@@ -2,6 +2,7 @@ package opsync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -77,26 +78,66 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 	}
 }
 
-func (p *Planner) Plan(ctx context.Context) ([]backends.Plan, error) {
-	// check 1password cli is available.
+// check 1password cli is available.
+func (p *Planner) checkIsOPAvailable(ctx context.Context) error {
 	userInfo, err := p.cfg.OnePassword.WhoAmI(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	slog.InfoContext(ctx, "1password user information", slog.String("url", userInfo.URL), slog.String("email", userInfo.Email))
+	return nil
+}
 
-	secrets := p.cfg.Config.Secrets
-	keys := make([]string, 0, len(secrets))
-	for key := range secrets {
+// Plan plans all secrets.
+func (p *Planner) Plan(ctx context.Context) ([]backends.Plan, error) {
+	s := p.cfg.Config.Secrets
+	keys := make([]string, 0, len(s))
+	for key := range s {
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
 
+	return p.plan(ctx, keys)
+}
+
+// PlanWithSecrets plans the specified secrets.
+func (p *Planner) PlanWithSecrets(ctx context.Context, secrets []string) ([]backends.Plan, error) {
+	return p.plan(ctx, secrets)
+}
+
+func (p *Planner) plan(ctx context.Context, secrets []string) ([]backends.Plan, error) {
+	// check 1password cli is available.
+	if err := p.checkIsOPAvailable(ctx); err != nil {
+		return nil, err
+	}
+
+	// list the secrets
+	s := p.cfg.Config.Secrets
+	keys := make([]string, 0, len(secrets))
+	unknown := make([]string, 0, len(secrets))
+	for _, key := range secrets {
+		if _, ok := s[key]; ok {
+			keys = append(keys, key)
+		} else {
+			unknown = append(unknown, key)
+		}
+	}
+	slices.Sort(keys)
+	slices.Sort(unknown)
+	if len(unknown) > 0 {
+		return nil, fmt.Errorf("opsync: unknown secrets %q", unknown)
+	}
+
 	// do planning
+	errs := []error{}
 	plans := make([]backends.Plan, 0, len(keys))
 	for _, key := range keys {
-		slog.DebugContext(ctx, "planning", slog.String("key", key))
-		cfg := secrets[key]
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		slog.InfoContext(ctx, "planning", slog.String("key", key))
+		cfg := s[key]
 		c := new(maputils.Context)
 		typ := maputils.Must[string](c, cfg, "type")
 		if err := c.Err(); err != nil {
@@ -105,13 +146,18 @@ func (p *Planner) Plan(ctx context.Context) ([]backends.Plan, error) {
 
 		backend, ok := p.backends[typ]
 		if !ok {
-			return nil, fmt.Errorf("opsync: backend for type %q not found", typ)
+			errs = append(errs, fmt.Errorf("opsync: backend for type %q not found", typ))
+			continue
 		}
 		plan, err := backend.Plan(ctx, cfg)
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 		plans = append(plans, plan...)
+	}
+	if len(errs) != 0 {
+		return nil, errors.Join(errs...)
 	}
 	return plans, nil
 }
