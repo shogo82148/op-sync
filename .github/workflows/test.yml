@@ -29,10 +29,11 @@ jobs:
           go test -v -coverprofile=profile.cov ./...
 
       - name: upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./profile.cov
           flags: ${{ matrix.go }}
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   goreleaser-check:
     runs-on: ubuntu-latest
