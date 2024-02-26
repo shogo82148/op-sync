@@ -1,6 +1,6 @@
 module github.com/shogo82148/op-sync
 
-go 1.21.3
+go 1.22.0
 
 require (
 	github.com/Songmu/prompter v0.5.1
