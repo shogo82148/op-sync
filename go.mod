@@ -6,8 +6,8 @@ require (
 	github.com/Songmu/prompter v0.5.1
 	github.com/aws/aws-sdk-go-v2 v1.25.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.7
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.28.2
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.49.2
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.28.3
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.49.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.28.4
 	github.com/goccy/go-yaml v1.11.3
 	github.com/google/go-cmp v0.6.0
