@@ -9,6 +9,8 @@ jobs:
   goreleaser:
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     runs-on: ubuntu-latest
     steps:
@@ -28,3 +30,10 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.txt
