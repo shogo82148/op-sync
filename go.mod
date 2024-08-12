@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.30.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.27
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.32.4
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.52.3
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.52.4
 	github.com/aws/aws-sdk-go-v2/service/sts v1.30.3
 	github.com/goccy/go-yaml v1.12.0
 	github.com/google/go-cmp v0.6.0
