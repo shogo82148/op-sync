@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.34.12
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.56.6
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.8
-	github.com/goccy/go-yaml v1.15.13
+	github.com/goccy/go-yaml v1.15.17
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v56 v56.0.0
 	golang.org/x/crypto v0.32.0
