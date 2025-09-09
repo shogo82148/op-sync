@@ -1,6 +1,6 @@
 module github.com/shogo82148/op-sync
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/Songmu/prompter v0.5.1
@@ -12,7 +12,7 @@ require (
 	github.com/goccy/go-yaml v1.17.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v56 v56.0.0
-	golang.org/x/crypto v0.32.0
+	golang.org/x/crypto v0.42.0
 )
 
 require (
@@ -29,6 +29,6 @@ require (
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/term v0.28.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/term v0.35.0 // indirect
 )
