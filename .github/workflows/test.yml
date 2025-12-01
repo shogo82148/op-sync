@@ -11,18 +11,12 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        go:
-          - "1.22"
-
     steps:
       - uses: actions/checkout@v5
-      - name: Setup Go ${{ matrix.go }}
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: go.mod
 
       - name: test
         run: |
@@ -32,7 +26,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           file: ./profile.cov
-          flags: ${{ matrix.go }}
           token: ${{ secrets.CODECOV_TOKEN }}
 
   goreleaser-check:
