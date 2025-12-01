@@ -31,7 +31,7 @@ jobs:
       - name: upload coverage
         uses: codecov/codecov-action@v5
         with:
-          file: ./profile.cov
+          files: ./profile.cov
           flags: ${{ matrix.go }}
           token: ${{ secrets.CODECOV_TOKEN }}
 
