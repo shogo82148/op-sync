@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.2.5](https://github.com/shogo82148/op-sync/compare/v0.2.4...v0.2.5) - 2026-10-30
+### 🏕 Features
+- pin GitHub Actions with gh actions-lock by @shogo82148 in https://github.com/shogo82148/op-sync/pull/235
+### 👒 Dependencies
+- Bump codecov/codecov-action from 5.5.1 to 5.5.2 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/220
+- Bump actions/checkout from 6.0.0 to 6.0.1 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/216
+
 ## [v0.2.4](https://github.com/shogo82148/op-sync/compare/v0.2.3...v0.2.4) - 2025-12-01
 ### 🏕 Features
 - bump Go 1.23.0 by @shogo82148 in https://github.com/shogo82148/op-sync/pull/107
