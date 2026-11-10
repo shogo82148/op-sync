@@ -45,7 +45,6 @@ func NewPlanner(cfg *PlannerOptions) *Planner {
 				OnePasswordItemGetter: cfg.OnePassword,
 				OnePasswordReader:     cfg.OnePassword,
 
-				GitHubRepoGetter:                cfg.GitHub,
 				GitHubRepoSecretGetter:          cfg.GitHub,
 				GitHubRepoSecretCreator:         cfg.GitHub,
 				GitHubRepoPublicKeyGetter:       cfg.GitHub,

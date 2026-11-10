@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v93/github"
 	"github.com/shogo82148/op-sync/internal/services"
 )
 
@@ -56,7 +56,11 @@ func (s *Service) client(ctx context.Context) (*github.Client, error) {
 		return nil, wrap(err)
 	}
 	token := string(bytes.TrimSpace(out))
-	s.c = github.NewClient(nil).WithAuthToken(token)
+	c, err := github.NewClient(github.WithAuthToken(token))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub client: %w", err)
+	}
+	s.c = c
 	return s.c, nil
 }
 
@@ -137,16 +141,15 @@ func (s *Service) CreateGitHubRepoSecret(ctx context.Context, app services.GitHu
 		slog.String("owner", owner), slog.String("repo", repo),
 		slog.String("name", secret.Name),
 	)
+	req := github.SecretRequest{
+		KeyID:          secret.KeyID,
+		EncryptedValue: secret.EncryptedValue,
+	}
 	switch app {
 	case services.GitHubApplicationActions:
-		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, owner, repo, secret)
+		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, owner, repo, secret.Name, req)
 	case services.GitHubApplicationDependabot:
-		dSecret := &github.DependabotEncryptedSecret{
-			Name:           secret.Name,
-			KeyID:          secret.KeyID,
-			EncryptedValue: secret.EncryptedValue,
-		}
-		_, err = client.Dependabot.CreateOrUpdateRepoSecret(ctx, owner, repo, dSecret)
+		_, err = client.Dependabot.CreateOrUpdateRepoSecret(ctx, owner, repo, secret.Name, req)
 	case services.GitHubApplicationCodespaces:
 		_, err = client.Codespaces.CreateOrUpdateRepoSecret(ctx, owner, repo, secret)
 	default:
@@ -175,14 +178,14 @@ func (s *Service) GetGitHubRepoPublicKey(ctx context.Context, owner, repo string
 var _ services.GitHubEnvSecretGetter = (*Service)(nil)
 
 // GetGitHubEvSecret gets a single environment secret without revealing its encrypted value.
-func (s *Service) GetGitHubEnvSecret(ctx context.Context, repoID int, env, name string) (*github.Secret, error) {
+func (s *Service) GetGitHubEnvSecret(ctx context.Context, owner, repo, env, name string) (*github.Secret, error) {
 	client, err := s.client(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "get the environment secret", slog.Int("repoID", repoID), slog.String("name", name))
-	secret, _, err := client.Actions.GetEnvSecret(ctx, repoID, env, name)
+	slog.DebugContext(ctx, "get the environment secret", slog.String("owner", owner), slog.String("repo", repo), slog.String("env", env), slog.String("name", name))
+	secret, _, err := client.Actions.GetEnvSecret(ctx, owner, repo, env, name)
 	if err != nil {
 		return nil, err
 	}
@@ -192,28 +195,31 @@ func (s *Service) GetGitHubEnvSecret(ctx context.Context, repoID int, env, name 
 var _ services.GitHubEnvSecretCreator = (*Service)(nil)
 
 // CreateGitHubEnvSecret creates or updates a single environment secret with an encrypted value.
-func (s *Service) CreateGitHubEnvSecret(ctx context.Context, repoID int, env string, secret *github.EncryptedSecret) error {
+func (s *Service) CreateGitHubEnvSecret(ctx context.Context, owner, repo, env string, secret *github.EncryptedSecret) error {
 	client, err := s.client(ctx)
 	if err != nil {
 		return err
 	}
 
-	slog.DebugContext(ctx, "create or update the environment secret", slog.Int("repoID", repoID), slog.String("name", secret.Name))
-	_, err = client.Actions.CreateOrUpdateEnvSecret(ctx, repoID, env, secret)
+	slog.DebugContext(ctx, "create or update the environment secret", slog.String("owner", owner), slog.String("repo", repo), slog.String("env", env), slog.String("name", secret.Name))
+	_, err = client.Actions.CreateOrUpdateEnvSecret(ctx, owner, repo, env, secret.Name, github.SecretRequest{
+		KeyID:          secret.KeyID,
+		EncryptedValue: secret.EncryptedValue,
+	})
 	return err
 }
 
 var _ services.GitHubEnvPublicKeyGetter = (*Service)(nil)
 
 // GetGitHubEnvPublicKey gets a public key that should be used for secret encryption.
-func (s *Service) GetGitHubEnvPublicKey(ctx context.Context, repoID int, env string) (*github.PublicKey, error) {
+func (s *Service) GetGitHubEnvPublicKey(ctx context.Context, owner, repo, env string) (*github.PublicKey, error) {
 	client, err := s.client(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "get the environment public key", slog.Int("repoID", repoID), slog.String("env", env))
-	key, _, err := client.Actions.GetEnvPublicKey(ctx, repoID, env)
+	slog.DebugContext(ctx, "get the environment public key", slog.String("owner", owner), slog.String("repo", repo), slog.String("env", env))
+	key, _, err := client.Actions.GetEnvPublicKey(ctx, owner, repo, env)
 	if err != nil {
 		return nil, err
 	}
@@ -257,18 +263,17 @@ func (s *Service) CreateGitHubOrgSecret(ctx context.Context, app services.GitHub
 	}
 
 	slog.InfoContext(ctx, "create or update the org secret", slog.String("application", string(app)), slog.String("org", org), slog.String("name", secret.Name))
+	req := github.SecretOrgRequest{
+		KeyID:                 secret.KeyID,
+		EncryptedValue:        secret.EncryptedValue,
+		Visibility:            secret.Visibility,
+		SelectedRepositoryIDs: secret.SelectedRepositoryIDs,
+	}
 	switch app {
 	case services.GitHubApplicationActions:
-		_, err = client.Actions.CreateOrUpdateOrgSecret(ctx, org, secret)
+		_, err = client.Actions.CreateOrUpdateOrgSecret(ctx, org, secret.Name, req)
 	case services.GitHubApplicationDependabot:
-		dSecret := &github.DependabotEncryptedSecret{
-			Name:                  secret.Name,
-			KeyID:                 secret.KeyID,
-			EncryptedValue:        secret.EncryptedValue,
-			Visibility:            secret.Visibility,
-			SelectedRepositoryIDs: github.DependabotSecretsSelectedRepoIDs(secret.SelectedRepositoryIDs),
-		}
-		_, err = client.Dependabot.CreateOrUpdateOrgSecret(ctx, org, dSecret)
+		_, err = client.Dependabot.CreateOrUpdateOrgSecret(ctx, org, secret.Name, req)
 	case services.GitHubApplicationCodespaces:
 		_, err = client.Codespaces.CreateOrUpdateOrgSecret(ctx, org, secret)
 	default:
