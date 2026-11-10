@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v93/github"
 	"github.com/shogo82148/op-sync/internal/services"
 	"github.com/shogo82148/op-sync/internal/services/mock"
 	"golang.org/x/crypto/nacl/box"
@@ -51,8 +51,8 @@ func TestPlan_RepoSecret(t *testing.T) {
 		}),
 		GitHubRepoPublicKeyGetter: mock.GitHubRepoPublicKeyGetter(func(ctx context.Context, owner, repo string) (*github.PublicKey, error) {
 			return &github.PublicKey{
-				KeyID: github.String("key_id"),
-				Key:   github.String(pubKey),
+				KeyID: github.Ptr("key_id"),
+				Key:   github.Ptr(pubKey),
 			}, nil
 		}),
 	})
@@ -182,8 +182,8 @@ func TestPlan_RepoSecret_for_Dependabot(t *testing.T) {
 		}),
 		GitHubRepoPublicKeyGetter: mock.GitHubRepoPublicKeyGetter(func(ctx context.Context, owner, repo string) (*github.PublicKey, error) {
 			return &github.PublicKey{
-				KeyID: github.String("key_id"),
-				Key:   github.String(pubKey),
+				KeyID: github.Ptr("key_id"),
+				Key:   github.Ptr(pubKey),
 			}, nil
 		}),
 	})
@@ -255,21 +255,16 @@ func TestPlan_EnvSecret(t *testing.T) {
 		OnePasswordReader: mock.OnePasswordReader(func(ctx context.Context, uri string) ([]byte, error) {
 			return []byte("secret"), nil
 		}),
-		GitHubRepoGetter: mock.GitHubRepoGetter(func(ctx context.Context, owner, repo string) (*github.Repository, error) {
-			return &github.Repository{
-				ID: github.Int64(1234567890),
-			}, nil
-		}),
-		GitHubEnvSecretGetter: mock.GitHubEnvSecretGetter(func(ctx context.Context, repoID int, env, name string) (*github.Secret, error) {
+		GitHubEnvSecretGetter: mock.GitHubEnvSecretGetter(func(ctx context.Context, owner, repo, env, name string) (*github.Secret, error) {
 			return nil, &github.ErrorResponse{
 				Response: &http.Response{
 					StatusCode: http.StatusNotFound,
 				},
 			}
 		}),
-		GitHubEnvSecretCreator: mock.GitHubEnvSecretCreator(func(ctx context.Context, repoID int, env string, secret *github.EncryptedSecret) error {
-			if repoID != 1234567890 {
-				t.Errorf("unexpected repository ID: want 1234567890, got %d", repoID)
+		GitHubEnvSecretCreator: mock.GitHubEnvSecretCreator(func(ctx context.Context, owner, repo, env string, secret *github.EncryptedSecret) error {
+			if owner != "shogo82148" || repo != "op-sync" {
+				t.Errorf("unexpected repository: want shogo82148/op-sync, got %s/%s", owner, repo)
 			}
 			if env != "test" {
 				t.Errorf("unexpected environment: want test, got %s", env)
@@ -280,10 +275,10 @@ func TestPlan_EnvSecret(t *testing.T) {
 			envSecret = secret
 			return nil
 		}),
-		GitHubEnvPublicKeyGetter: mock.GitHubEnvPublicKeyGetter(func(ctx context.Context, repoID int, env string) (*github.PublicKey, error) {
+		GitHubEnvPublicKeyGetter: mock.GitHubEnvPublicKeyGetter(func(ctx context.Context, owner, repo, env string) (*github.PublicKey, error) {
 			return &github.PublicKey{
-				KeyID: github.String("key_id"),
-				Key:   github.String(pubKey),
+				KeyID: github.Ptr("key_id"),
+				Key:   github.Ptr(pubKey),
 			}, nil
 		}),
 	})
@@ -352,12 +347,7 @@ func TestPlan_EnvSecret_UpToDate(t *testing.T) {
 		OnePasswordReader: mock.OnePasswordReader(func(ctx context.Context, uri string) ([]byte, error) {
 			return []byte("secret"), nil
 		}),
-		GitHubRepoGetter: mock.GitHubRepoGetter(func(ctx context.Context, owner, repo string) (*github.Repository, error) {
-			return &github.Repository{
-				ID: github.Int64(1234567890),
-			}, nil
-		}),
-		GitHubEnvSecretGetter: mock.GitHubEnvSecretGetter(func(ctx context.Context, repoID int, env, name string) (*github.Secret, error) {
+		GitHubEnvSecretGetter: mock.GitHubEnvSecretGetter(func(ctx context.Context, owner, repo, env, name string) (*github.Secret, error) {
 			return &github.Secret{
 				UpdatedAt: github.Timestamp{Time: time.Unix(1234567890+1, 0)},
 			}, nil
@@ -416,8 +406,8 @@ func TestPlan_OrgSecret(t *testing.T) {
 		}),
 		GitHubOrgPublicKeyGetter: mock.GitHubOrgPublicKeyGetter(func(ctx context.Context, org string) (*github.PublicKey, error) {
 			return &github.PublicKey{
-				KeyID: github.String("key_id"),
-				Key:   github.String(pubKey),
+				KeyID: github.Ptr("key_id"),
+				Key:   github.Ptr(pubKey),
 			}, nil
 		}),
 	})

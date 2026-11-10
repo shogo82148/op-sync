@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v93/github"
 )
 
 // GitHubApplication represents a GitHub application for secret management.
@@ -42,17 +42,17 @@ type GitHubRepoPublicKeyGetter interface {
 
 // GitHubEnvSecretGetter gets a single environment secret without revealing its encrypted value.
 type GitHubEnvSecretGetter interface {
-	GetGitHubEnvSecret(ctx context.Context, repoID int, env, name string) (*github.Secret, error)
+	GetGitHubEnvSecret(ctx context.Context, owner, repo, env, name string) (*github.Secret, error)
 }
 
 // GitHubEnvSecretCreator creates or updates a single environment secret with an encrypted value.
 type GitHubEnvSecretCreator interface {
-	CreateGitHubEnvSecret(ctx context.Context, repoID int, env string, secret *github.EncryptedSecret) error
+	CreateGitHubEnvSecret(ctx context.Context, owner, repo, env string, secret *github.EncryptedSecret) error
 }
 
 // GitHubEnvPublicKeyGetter gets a public key that should be used for secret encryption.
 type GitHubEnvPublicKeyGetter interface {
-	GetGitHubEnvPublicKey(ctx context.Context, repoID int, env string) (*github.PublicKey, error)
+	GetGitHubEnvPublicKey(ctx context.Context, owner, repo, env string) (*github.PublicKey, error)
 }
 
 // GitHubOrgSecretGetter gets a single organization secret without revealing its encrypted value.

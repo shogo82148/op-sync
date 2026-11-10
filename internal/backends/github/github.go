@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v93/github"
 	"github.com/shogo82148/op-sync/internal/backends"
 	"github.com/shogo82148/op-sync/internal/maputils"
 	"github.com/shogo82148/op-sync/internal/services"
@@ -25,7 +25,6 @@ type Backend struct {
 type Options struct {
 	services.OnePasswordItemGetter
 	services.OnePasswordReader
-	services.GitHubRepoGetter
 	services.GitHubRepoSecretGetter
 	services.GitHubRepoSecretCreator
 	services.GitHubRepoPublicKeyGetter
@@ -164,15 +163,11 @@ func (b *Backend) newPlanRepoSecret(ctx context.Context, app services.GitHubAppl
 }
 
 func (b *Backend) planEnvSecret(ctx context.Context, owner, repo, env, name, source string) ([]backends.Plan, error) {
-	ghRepo, err := b.opts.GetGitHubRepo(ctx, owner, repo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get GitHub repo: %w", err)
-	}
-	secret, err := b.opts.GetGitHubEnvSecret(ctx, int(ghRepo.GetID()), env, name)
+	secret, err := b.opts.GetGitHubEnvSecret(ctx, owner, repo, env, name)
 	if isNotFound(err) {
 		// the secret is not found.
 		// we should create it.
-		return b.newPlanEnvSecret(ctx, ghRepo, env, name, source)
+		return b.newPlanEnvSecret(ctx, owner, repo, env, name, source)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub repo secret: %w", err)
@@ -194,12 +189,12 @@ func (b *Backend) planEnvSecret(ctx context.Context, owner, repo, env, name, sou
 		return []backends.Plan{}, nil
 	}
 
-	return b.newPlanEnvSecret(ctx, ghRepo, env, name, source)
+	return b.newPlanEnvSecret(ctx, owner, repo, env, name, source)
 }
 
-func (b *Backend) newPlanEnvSecret(ctx context.Context, ghRepo *github.Repository, env, name, source string) ([]backends.Plan, error) {
+func (b *Backend) newPlanEnvSecret(ctx context.Context, owner, repo, env, name, source string) ([]backends.Plan, error) {
 	// get the public key
-	key, err := b.opts.GetGitHubEnvPublicKey(ctx, int(ghRepo.GetID()), env)
+	key, err := b.opts.GetGitHubEnvPublicKey(ctx, owner, repo, env)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get GitHub environment public key: %w", err)
 	}
@@ -219,9 +214,8 @@ func (b *Backend) newPlanEnvSecret(ctx context.Context, ghRepo *github.Repositor
 	return []backends.Plan{
 		&PlanEnvSecret{
 			backend:         b,
-			owner:           ghRepo.GetOwner().GetLogin(),
-			repo:            ghRepo.GetName(),
-			repoID:          ghRepo.GetID(),
+			owner:           owner,
+			repo:            repo,
 			env:             env,
 			name:            name,
 			keyID:           key.GetKeyID(),
@@ -357,7 +351,6 @@ type PlanEnvSecret struct {
 	backend         *Backend
 	owner           string
 	repo            string
-	repoID          int64
 	env             string
 	name            string
 	keyID           string
@@ -378,7 +371,7 @@ func (p *PlanEnvSecret) Apply(ctx context.Context) error {
 		KeyID:          p.keyID,
 		EncryptedValue: p.encryptedSecret,
 	}
-	return p.backend.opts.CreateGitHubEnvSecret(ctx, int(p.repoID), p.env, eSecret)
+	return p.backend.opts.CreateGitHubEnvSecret(ctx, p.owner, p.repo, p.env, eSecret)
 }
 
 var _ backends.Plan = (*PlanOrgSecret)(nil)

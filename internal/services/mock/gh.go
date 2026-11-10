@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	"github.com/google/go-github/v56/github"
+	"github.com/google/go-github/v93/github"
 	"github.com/shogo82148/op-sync/internal/services"
 )
 
@@ -55,28 +55,28 @@ func (f GitHubRepoPublicKeyGetter) GetGitHubRepoPublicKey(ctx context.Context, o
 var _ services.GitHubEnvSecretGetter = GitHubEnvSecretGetter(nil)
 
 // GitHubEnvSecretGetter gets a single environment secret without revealing its encrypted value.
-type GitHubEnvSecretGetter func(ctx context.Context, repoID int, env, name string) (*github.Secret, error)
+type GitHubEnvSecretGetter func(ctx context.Context, owner, repo, env, name string) (*github.Secret, error)
 
-func (f GitHubEnvSecretGetter) GetGitHubEnvSecret(ctx context.Context, repoID int, env, name string) (*github.Secret, error) {
-	return f(ctx, repoID, env, name)
+func (f GitHubEnvSecretGetter) GetGitHubEnvSecret(ctx context.Context, owner, repo, env, name string) (*github.Secret, error) {
+	return f(ctx, owner, repo, env, name)
 }
 
 var _ services.GitHubEnvSecretCreator = GitHubEnvSecretCreator(nil)
 
 // GitHubEnvSecretCreator creates or updates a single environment secret with an encrypted value.
-type GitHubEnvSecretCreator func(ctx context.Context, repoID int, env string, secret *github.EncryptedSecret) error
+type GitHubEnvSecretCreator func(ctx context.Context, owner, repo, env string, secret *github.EncryptedSecret) error
 
-func (f GitHubEnvSecretCreator) CreateGitHubEnvSecret(ctx context.Context, repoID int, env string, secret *github.EncryptedSecret) error {
-	return f(ctx, repoID, env, secret)
+func (f GitHubEnvSecretCreator) CreateGitHubEnvSecret(ctx context.Context, owner, repo, env string, secret *github.EncryptedSecret) error {
+	return f(ctx, owner, repo, env, secret)
 }
 
 var _ services.GitHubEnvPublicKeyGetter = GitHubEnvPublicKeyGetter(nil)
 
 // GitHubEnvPublicKeyGetter gets a public key that should be used for secret encryption.
-type GitHubEnvPublicKeyGetter func(ctx context.Context, repoID int, env string) (*github.PublicKey, error)
+type GitHubEnvPublicKeyGetter func(ctx context.Context, owner, repo, env string) (*github.PublicKey, error)
 
-func (f GitHubEnvPublicKeyGetter) GetGitHubEnvPublicKey(ctx context.Context, repoID int, env string) (*github.PublicKey, error) {
-	return f(ctx, repoID, env)
+func (f GitHubEnvPublicKeyGetter) GetGitHubEnvPublicKey(ctx context.Context, owner, repo, env string) (*github.PublicKey, error) {
+	return f(ctx, owner, repo, env)
 }
 
 var _ services.GitHubOrgSecretGetter = GitHubOrgSecretGetter(nil)
