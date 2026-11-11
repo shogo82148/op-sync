@@ -12,7 +12,7 @@ require (
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v93 v93.0.0
-	golang.org/x/crypto v0.52.0
+	golang.org/x/crypto v0.58.0
 )
 
 require (
