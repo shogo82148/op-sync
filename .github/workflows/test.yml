@@ -23,7 +23,7 @@ jobs:
           go test -v -coverprofile=profile.cov ./...
 
       - name: upload coverage
-        uses: codecov/codecov-action@v5.5.2
+        uses: codecov/codecov-action@v7.1.1
         with:
           files: ./profile.cov
           token: ${{ secrets.CODECOV_TOKEN }}
