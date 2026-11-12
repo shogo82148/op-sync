@@ -14,8 +14,7 @@ import (
 )
 
 func TestPlan(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var got *secretsmanager.CreateSecretInput
 	b := New(&Options{
@@ -75,8 +74,7 @@ func TestPlan(t *testing.T) {
 }
 
 func TestPlan_Update(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	var got *secretsmanager.UpdateSecretInput
 	b := New(&Options{
@@ -139,8 +137,7 @@ func TestPlan_Update(t *testing.T) {
 }
 
 func TestPlan_UpToDate(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	b := New(&Options{
 		OnePasswordReader: mock.OnePasswordReader(func(ctx context.Context, uri string) ([]byte, error) {

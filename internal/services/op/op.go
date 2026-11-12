@@ -89,8 +89,7 @@ func command(ctx context.Context, name string, args ...string) *exec.Cmd {
 }
 
 func wrap(err error) error {
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return fmt.Errorf("failed to run op command: %q: %w", string(exitErr.Stderr), err)
 	}
 	return fmt.Errorf("failed to run op command: %w", err)
