@@ -10,8 +10,7 @@ import (
 )
 
 func TestPlan_NoFile(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	dir := t.TempDir()
 	tmp := filepath.Join(dir, "output.txt")
@@ -62,8 +61,7 @@ func TestPlan_NoFile(t *testing.T) {
 }
 
 func TestPlan_UpToDate(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	dir := t.TempDir()
 	tmp := filepath.Join(dir, "output.txt")
@@ -94,8 +92,7 @@ func TestPlan_UpToDate(t *testing.T) {
 }
 
 func TestPlan_Updated(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	dir := t.TempDir()
 	tmp := filepath.Join(dir, "output.txt")
