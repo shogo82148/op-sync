@@ -1,5 +1,30 @@
 # Changelog
 
+## [v0.2.5](https://github.com/shogo82148/op-sync/compare/v0.2.4...v0.2.5) - 2026-11-13
+
+### 🏕 Features
+- pin GitHub Actions with gh actions-lock by @shogo82148 in https://github.com/shogo82148/op-sync/pull/235
+- run go fix ./... by @shogo82148 in https://github.com/shogo82148/op-sync/pull/243
+### 👒 Dependencies
+- Bump codecov/codecov-action from 5.5.1 to 5.5.2 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/220
+- Bump actions/checkout from 6.0.0 to 6.0.1 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/216
+- Bump shogo82148/actions-github-app-token from 1.0.3 to 1.3.4 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/217
+- Bump the aws-sdk group with 5 updates by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/218
+- Bump actions/attest-build-provenance from 3.0.0 to 4.2.2 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/224
+- Bump actions/setup-go from 6.1.0 to 7.0.0 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/227
+- Bump github.com/goccy/go-yaml from 1.19.0 to 1.19.2 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/226
+- Bump Songmu/tagpr from 1.9.0 to 1.22.0 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/231
+- Bump actions/checkout from 6.0.1 to 7.0.1 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/232
+- Bump golang.org/x/crypto from 0.45.0 to 0.49.0 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/234
+- build(deps): bump golang.org/x/crypto from 0.49.0 to 0.52.0 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/236
+- update github.com/google/go-github to v93 by @shogo82148 in https://github.com/shogo82148/op-sync/pull/237
+- build(deps): bump codecov/codecov-action from 5.5.2 to 7.1.1 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/238
+- build(deps): bump the aws-sdk group with 5 updates by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/239
+- build(deps): bump github.com/Songmu/prompter from 0.5.1 to 1.0.0 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/240
+- build(deps): bump goreleaser/goreleaser-action from 6.4.0 to 7.3.0 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/242
+- build(deps): bump golang.org/x/crypto from 0.52.0 to 0.58.0 by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/241
+- build(deps): bump github.com/aws/aws-sdk-go-v2/config from 1.33.16 to 1.33.17 in the aws-sdk group by @dependabot[bot] in https://github.com/shogo82148/op-sync/pull/244
+
 ## [v0.2.4](https://github.com/shogo82148/op-sync/compare/v0.2.3...v0.2.4) - 2025-12-01
 ### 🏕 Features
 - bump Go 1.23.0 by @shogo82148 in https://github.com/shogo82148/op-sync/pull/107
